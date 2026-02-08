@@ -1,0 +1,7 @@
+/* optional import skipped */
+.root .absolute {
+    position: absolute
+}
+.root .flex {
+    display: flex
+}
