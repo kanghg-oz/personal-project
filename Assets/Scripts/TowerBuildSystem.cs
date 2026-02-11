@@ -40,14 +40,15 @@ public partial struct TowerBuildSystem : ISystem
 
         // 2. 타워 생성 예약
         var towerPrefabs = state.EntityManager.GetBuffer<TowerPrefabElement>(configEntity);
-        Entity towerEntity = state.EntityManager.Instantiate(towerPrefabs[towerIdx].Value);
+        Entity prefabEntity = towerPrefabs[towerIdx].Value;
+        Entity towerEntity = state.EntityManager.Instantiate(prefabEntity);
 
-        // 위치 및 Picking ID 설정 예약
-        //ecb.SetComponent(towerEntity, LocalTransform.FromPositionRotation(new float3(x, 0.2f, z), quaternion.identity));
-        
-        state.EntityManager.SetComponentData(towerEntity, LocalTransform.FromPositionRotation(new float3(x, 0.2f, z), quaternion.identity));
+        LocalTransform prefabTransform = state.EntityManager.GetComponentData<LocalTransform>(prefabEntity);
+        float originalScale = prefabTransform.Scale;
+        state.EntityManager.SetComponentData(towerEntity, LocalTransform.FromPositionRotationScale(new float3(x, 0.2f, z), quaternion.identity, originalScale));
         int uniqueId = (z * config.MapWidth + x) + 1;
         state.EntityManager.AddComponentData(towerEntity, new PickingIdColor { Value = IndexToColor(uniqueId) });
+        state.EntityManager.AddComponentData(towerEntity, new TowerAnimation {LastFireTime = -10, Timer = 0, Speed = 1, Padding = 0 });
 
         var objData = state.EntityManager.GetBuffer<ObjectDataElement>(configEntity);
         var objEntities = state.EntityManager.GetBuffer<ObjectEntityElement>(configEntity);

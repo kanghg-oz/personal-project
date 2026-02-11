@@ -7,7 +7,7 @@ public class MapConfigAuthoring : MonoBehaviour
     public List<GameObject> FloorPrefabs;
     public List<GameObject> ObjectPrefabs;
     public List<GameObject> TowerPrefabs;
-    public GameObject MonsterPrefab;
+    public List<GameObject> MonsterPrefabs;
 
     public class Baker : Baker<MapConfigAuthoring>
     {
@@ -36,12 +36,15 @@ public class MapConfigAuthoring : MonoBehaviour
             var towerBuffer = AddBuffer<TowerPrefabElement>(entity);
             foreach (var prefab in authoring.TowerPrefabs)
             {
-                towerBuffer.Add(new TowerPrefabElement { Value = GetEntity(prefab, TransformUsageFlags.Dynamic) });
+                towerBuffer.Add(new TowerPrefabElement { Value = GetEntity(prefab, TransformUsageFlags.Renderable) });
             }
 
             // 몬스터 프리팹 베이킹
             var monsterBuffer = AddBuffer<MonsterPrefabElement>(entity);
-            monsterBuffer.Add(new MonsterPrefabElement { Value = GetEntity(authoring.MonsterPrefab, TransformUsageFlags.Dynamic) });
+            foreach (var prefab in authoring.MonsterPrefabs)
+            {
+                monsterBuffer.Add(new MonsterPrefabElement { Value = GetEntity(prefab, TransformUsageFlags.Dynamic) });
+            }
 
             // 맵 데이터 저장용 빈 리스트 생성
             AddBuffer<FloorDataElement>(entity);

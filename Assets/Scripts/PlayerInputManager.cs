@@ -75,8 +75,10 @@ public class PlayerInputManager : MonoBehaviour
     [Header("Visualization")]
     public GameObject pathLinePrefab; // LineRenderer가 달린 프리팹 할당
     public Color normalPathColor = Color.white;
+    public Color previewPathColor = new Color(0, 1, 0, 0.5f);
     public Color blockedPathColor = Color.red;
     private List<LineRenderer> _pathLines = new List<LineRenderer>();
+    private List<LineRenderer> _previewLines = new List<LineRenderer>();
 
     // 스폰 지점 목록 (csv에서 읽어온 값들을 저장해두었다가 사용)
     private List<int2> _spawnPoints = new List<int2>();
@@ -150,6 +152,20 @@ public class PlayerInputManager : MonoBehaviour
         {
             GameObject go = Instantiate(pathLinePrefab, transform);
             _pathLines.Add(go.GetComponent<LineRenderer>());
+
+            GameObject po = Instantiate(pathLinePrefab, transform);
+            po.name = $"PreviewLine_{_previewLines.Count}";
+            var lr = po.GetComponent<LineRenderer>();
+
+            // 프리뷰용 색상 및 투명도 설정
+            lr.startColor = previewPathColor;
+            lr.endColor = previewPathColor;
+
+            // 겹쳐도 잘 보이게 굵기를 약간 조절하거나 sorting order 조정 가능
+            lr.widthMultiplier = 0.15f;
+
+            po.SetActive(false);
+            _previewLines.Add(lr);
         }
     }
 
@@ -171,11 +187,13 @@ public class PlayerInputManager : MonoBehaviour
         int2 current = startNode;
         int safety = 0;
 
+        float height = (_previewLines.Contains(lr)) ? 0.45f : 0.5f;
+
         // 시작점이 맵 밖인 경우 처리
         if (current.x < 0 || current.x >= _mapWidth || current.y < 0 || current.y >= _mapHeight)
         {
             // 1. 스폰 위치(맵 밖) 점 추가
-            _drawPoints.Add(new Vector3(current.x, 0.5f, current.y));
+            _drawPoints.Add(new Vector3(current.x, height, current.y));
 
             // 2. 가장 가까운 진입점(Entry Point) 계산
             int entryX = Mathf.Clamp(current.x, 0, _mapWidth - 1);
@@ -187,7 +205,7 @@ public class PlayerInputManager : MonoBehaviour
 
         while (safety++ < 1000)
         {
-            _drawPoints.Add(new Vector3(current.x, 0.5f, current.y));
+            _drawPoints.Add(new Vector3(current.x, height, current.y));
 
             TileInfo info = targetMap[current.x, current.y];
 
@@ -216,53 +234,78 @@ public class PlayerInputManager : MonoBehaviour
         // 이미 같은 곳을 선택 중이면 무시
         if (_lastSelectedPos.x == x && _lastSelectedPos.y == z) return;
 
-        // 만약 이전에 시뮬레이션 중인 좌표가 있었다면 먼저 복구
-        //if (_lastSelectedPos.x != -1) RestoreOriginalPath();
-
         _lastSelectedPos = new int2(x, z);
-        //_originalObjType = MapData[x, z].objType;
 
         // 실제 데이터를 시뮬레이션 맵으로 복사
         Array.Copy(_realMapData, _simMapData, _realMapData.Length);
 
-        // 타일이 빈 공간(0)일 때만 장애물로 가정하고 시뮬레이션
-        //if (_originalObjType == 0)
+        // 빈 땅일 때 건설 시뮬레이션
+        //if (_simMapData[x, z].objType == 0)
         //{
-        //    MapData[x, z].objType = 2; // 가상의 장애물
-        //    FullUpdatePath(false); // 시각화(DrawAllPaths) 제외 전체 갱신
+        //    _simMapData[x, z].objType = 2; // 가상 장애물
+        //    //FullUpdatePath(_simMapData, false); // 시뮬레이션 맵만 연산 (그리지는 않음)
+        //    UpdatePathAt(x, z, _simMapData);
 
-        //    // 경로가 막혔는지 검사
-        //    IsPathBlocked = CheckIfAnyPathBlocked();
+        //    IsPathBlocked = CheckIfAnyPathBlocked(_simMapData);
         //    if (IsPathBlocked)
         //    {
-        //        // 길이 막히면 기존 선을 유지한 채 색상만 변경
-        //        UpdatePathVisualizationColor();
+        //        // 막혔다면 기존 선(DrawAllPaths 안함) 유지하고 색상만 변경
+        //        UpdatePathVisualizationColor(_simMapData);
         //    }
         //    else
         //    {
-        //        // 길이 뚫려 있다면 새로운 경로로 선을 다시 그림
-        //        DrawAllPaths();
-        //        UpdatePathVisualizationColor();
+        //        // 뚫렸다면 시뮬레이션 결과대로 새로 그림
+        //        DrawAllPaths(_simMapData);
+        //        UpdatePathVisualizationColor(_simMapData);
         //    }
         //}
-        if (_simMapData[x, z].objType == 0)
-        {
-            _simMapData[x, z].objType = 2; // 가상 장애물
-            //FullUpdatePath(_simMapData, false); // 시뮬레이션 맵만 연산 (그리지는 않음)
-            UpdatePathAt(x, z, _simMapData);
+        //// 구조물일 때 제거 시뮬레이션
+        //else if (_simMapData[x, z].objType > 1)
+        //{
+        //    _simMapData[x, z].objType = 0; // 가상 빈 땅 (제거)
+        //    UpdatePathAt(x, z, _simMapData);
 
-            IsPathBlocked = CheckIfAnyPathBlocked(_simMapData);
-            if (IsPathBlocked)
-            {
-                // 막혔다면 기존 선(DrawAllPaths 안함) 유지하고 색상만 변경
-                UpdatePathVisualizationColor(_simMapData);
-            }
-            else
-            {
-                // 뚫렸다면 시뮬레이션 결과대로 새로 그림
-                DrawAllPaths(_simMapData);
-                UpdatePathVisualizationColor(_simMapData);
-            }
+        //    // 제거 시에는 보통 길이 뚫리므로 IsPathBlocked가 false가 될 확률이 높음
+        //    IsPathBlocked = CheckIfAnyPathBlocked(_simMapData);
+
+        //    // 제거 후에도 여전히 막혀있을 수 있으므로(다른 벽 때문에) 동일하게 분기 처리
+        //    if (IsPathBlocked)
+        //    {
+        //        UpdatePathVisualizationColor(_simMapData);
+        //    }
+        //    else
+        //    {
+        //        // 길이 뚫렸으므로 예상 경로를 초록색(또는 흰색)으로 다시 그림
+        //        DrawAllPaths(_simMapData);
+        //        UpdatePathVisualizationColor(_simMapData);
+        //    }
+        //}
+
+        if (_realMapData[x, z].objType == 0)
+            _simMapData[x, z].objType = 2; // 건설 가정
+        else if (_realMapData[x, z].objType > 1)
+            _simMapData[x, z].objType = 0; // 제거 가정
+
+        // 시뮬레이션 맵 경로 갱신
+        UpdatePathAt(x, z, _simMapData);
+
+        // 경로 막힘 여부 체크
+        IsPathBlocked = CheckIfAnyPathBlocked(_simMapData);
+        if (IsPathBlocked)
+        {
+            // [Case 1] 길이 막힘 -> 기존 라인을 빨간색으로 경고 & 프리뷰 숨김
+            UpdatePathVisualizationColor(_pathLines, _simMapData, true); // true: 막힘 강제 표시
+            HidePreviewLines();
+        }
+        else
+        {
+            // [Case 2] 길이 뚫림 -> 기존 라인 유지(흰색) & 프리뷰 라인 반투명 표시
+
+            // 1. 기존 라인은 실제 맵 데이터(_realMapData) 기준 원래 색으로 복구
+            UpdatePathVisualizationColor(_pathLines, _realMapData, false);
+
+            // 2. 프리뷰 라인 활성화 및 그리기
+            ShowPreviewPaths(_simMapData);
         }
     }
 
@@ -282,22 +325,55 @@ public class PlayerInputManager : MonoBehaviour
     }
 
     // 경로 상태에 따라 LineRenderer 색상 변경
-    private void UpdatePathVisualizationColor(TileInfo[,] targetMap)
+    private void UpdatePathVisualizationColor(List<LineRenderer> lines, TileInfo[,] targetMap, bool isSimulation)
     {
-        foreach (var lr in _pathLines)
+        for (int i = 0; i < lines.Count; i++)
         {
-            // 첫 번째 포인트(스폰 지점)를 기준으로 타일 판단
-            Vector3 startPos = lr.GetPosition(0);
-            int x = Mathf.Clamp(Mathf.RoundToInt(startPos.x), 0, _mapWidth - 1);
-            int z = Mathf.Clamp(Mathf.RoundToInt(startPos.z), 0, _mapHeight - 1);
+            var lr = lines[i];
+            if (i >= _spawnPoints.Count) continue;
 
-            // 연산 결과가 -1이면 빨간색, 아니면 흰색
-            bool isBlocked = targetMap[x, z].distanceToGoal == -1f;
-            Color targetColor = isBlocked ? blockedPathColor : normalPathColor;
+            // 해당 라인의 스폰 지점 좌표 가져오기
+            int2 spawn = _spawnPoints[i];
+            int sx = Mathf.Clamp(spawn.x, 0, _mapWidth - 1);
+            int sz = Mathf.Clamp(spawn.y, 0, _mapHeight - 1);
+
+            // 해당 스폰 지점에서 목표까지의 거리가 -1이면 막힌 것
+            bool isBlocked = targetMap[sx, sz].distanceToGoal == -1f;
+
+            // 색상 결정
+            Color targetColor;
+            if (isBlocked)
+            {
+                targetColor = blockedPathColor; // 막힌 경로는 무조건 빨간색
+            }
+            else
+            {
+                // 뚫린 경로: 프리뷰 라인이면 반투명 초록, 일반 라인이면 흰색
+                targetColor = (lines == _previewLines) ? previewPathColor : normalPathColor;
+            }
 
             lr.startColor = targetColor;
             lr.endColor = targetColor;
+        }
+    }
 
+    // 프리뷰 라인 그리기
+    private void ShowPreviewPaths(TileInfo[,] targetMap)
+    {
+        for (int i = 0; i < _spawnPoints.Count; i++)
+        {
+            _previewLines[i].gameObject.SetActive(true);
+            DrawPath(_spawnPoints[i], _previewLines[i], targetMap);
+
+        }
+    }
+
+    // 프리뷰 라인 숨기기
+    private void HidePreviewLines()
+    {
+        foreach (var lr in _previewLines)
+        {
+            lr.gameObject.SetActive(false);
         }
     }
 
@@ -306,22 +382,12 @@ public class PlayerInputManager : MonoBehaviour
     {
         if (_lastSelectedPos.x != -1)
         {
-            // [핵심] _realMapData는 시뮬레이션에 의해 변하지 않았으므로 계산할 필요 없음!
-            // 그냥 실제 데이터를 기반으로 선만 다시 그려주면 즉시 복구됨.
-            DrawAllPaths(_realMapData);
+            HidePreviewLines();
 
-            // 사용자님의 시각화 복구 분기 로직 적용
-            if (IsPathBlocked)
-            {
-                IsPathBlocked = false;
-                UpdatePathVisualizationColor(_realMapData);
-                IsPathBlocked = true;
-            }
-            else
-            {
-                UpdatePathVisualizationColor(_realMapData);
-            }
+            UpdatePathVisualizationColor(_pathLines, _realMapData, false);
+
             _lastSelectedPos = new int2(-1, -1);
+            IsPathBlocked = false;
         }
     }
 
@@ -338,6 +404,7 @@ public class PlayerInputManager : MonoBehaviour
         PendingTowerIndex = towerIndex;
         IsBuildRequestPending = true;
         // 건설이 확정되었으므로 시뮬레이션 좌표를 초기화하여 복구 로직이 실행되지 않게 함
+        HidePreviewLines();
         _lastSelectedPos = new int2(-1, -1);
         HasSelection = false;
     }
@@ -603,15 +670,18 @@ public class PlayerInputManager : MonoBehaviour
 
                 if (nx >= 0 && nx < _mapWidth && nz >= 0 && nz < _mapHeight)
                 {
-                    float bias = (((uint)(nx * 73856093 ^ nz * 19349663 )) % 1024) * 0.0000001f;
-                    float moveCost = baseCosts8[i] + bias;
-
-                    // 장애물 체크 및 방문 체크
-                    if (targetMap[nx, nz].objType <= 1 && targetMap[nx, nz].distanceToGoal == -1f)
+                    if (targetMap[nx, nz].objType <= 1 && IsValidDiagonalMove(curr.x, curr.y, nx, nz, targetMap))
                     {
-                        targetMap[nx, nz].distanceToGoal = targetMap[curr.x, curr.y].distanceToGoal + moveCost;
-                        targetMap[nx, nz].preTile = curr;
-                        _pathQueue.Enqueue(new int2(nx, nz));
+                        float bias = BiasForTile(nx,nz);
+                        float moveCost = baseCosts8[i] + bias;
+
+                        // 장애물 체크 및 방문 체크
+                        if (targetMap[nx, nz].distanceToGoal == -1f)
+                        {
+                            targetMap[nx, nz].distanceToGoal = targetMap[curr.x, curr.y].distanceToGoal + moveCost;
+                            targetMap[nx, nz].preTile = curr;
+                            _pathQueue.Enqueue(new int2(nx, nz));
+                        }
                     }
                 }
             }
@@ -637,12 +707,12 @@ public class PlayerInputManager : MonoBehaviour
         bool isRealMap = (targetMap == _realMapData);
 
         // 디버그용
-        if (isRealMap)
-        {
-            Debug.Log($"<color=cyan><b>[Path Debug]</b> 구조물 제거 시작 - 위치: ({x}, {z})</color>");
-            // 제거 전 스폰 지점 경로 샘플링 (첫 번째 스폰 지점 기준)
-            PrintDebugPath("제거 전(Before)", targetMap);
-        }
+        //if (isRealMap)
+        //{
+        //    Debug.Log($"<color=cyan><b>[Path Debug]</b> 구조물 제거 시작 - 위치: ({x}, {z})</color>");
+        //    // 제거 전 스폰 지점 경로 샘플링 (첫 번째 스폰 지점 기준)
+        //    PrintDebugPath("제거 전(Before)", targetMap);
+        //}
 
         _invalidQueue.Clear();
         _repairQueue.Clear();
@@ -660,6 +730,39 @@ public class PlayerInputManager : MonoBehaviour
         _invalidQueue.Enqueue(new int2(x, z)); 
         _affectedTilesList.Add(new int2(x, z));
         _isAffectedMask[x, z] = true;
+
+        if (targetMap[x, z].objType > 1) // 벽이 생겼을 때만 체크
+        {
+            for (int i = 0; i < 8; i++)
+            {
+                int nx = x + dx8[i];
+                int nz = z + dz8[i];
+                if (nx >= 0 && nx < _mapWidth && nz >= 0 && nz < _mapHeight)
+                {
+                    // 아직 영향을 받지 않은 이웃 타일 확인
+                    if (!_isAffectedMask[nx, nz] && targetMap[nx, nz].distanceToGoal != -1f)
+                    {
+                        int2 parent = targetMap[nx, nz].preTile;
+                        // 그 타일의 부모가 존재할 때
+                        if (parent.x != -1)
+                        {
+                            // "그 타일(nx,nz)이 부모(parent)로부터 올 때, 현재 위치(x,z)가 막혀서 못 오게 되었는가?"
+                            // IsValidDiagonalMove가 false를 반환하면 대각선 경로가 깨진 것임
+                            if (!IsValidDiagonalMove(parent.x, parent.y, nx, nz, targetMap))
+                            {
+                                _isAffectedMask[nx, nz] = true;
+                                targetMap[nx, nz].distanceToGoal = -1f;
+                                if (isRealMap) targetMap[nx, nz].preTile = new int2(-1, -1);
+
+                                _affectedTilesList.Add(new int2(nx, nz));
+                                _invalidQueue.Enqueue(new int2(nx, nz));
+                                if (isRealMap) SyncSingleTileToECS(nx, nz);
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         while (_invalidQueue.Count > 0)
         {
@@ -726,9 +829,9 @@ public class PlayerInputManager : MonoBehaviour
 
                 if (nx >= 0 && nx < _mapWidth && nz >= 0 && nz < _mapHeight)
                 {
-                    if (targetMap[nx, nz].objType <= 1)
+                    if (targetMap[nx, nz].objType <= 1 && IsValidDiagonalMove(curr.x, curr.y, nx, nz, targetMap))
                     {
-                        float bias = (((uint)(nx * 73856093 ^ nz * 19349663 )) % 1024) * 0.0000001f;
+                        float bias = BiasForTile(nx, nz);
                         float newDist = targetMap[curr.x, curr.y].distanceToGoal + baseCosts8[i] + bias;
 
                         if (targetMap[nx, nz].distanceToGoal == -1f || newDist < targetMap[nx, nz].distanceToGoal)
@@ -744,24 +847,19 @@ public class PlayerInputManager : MonoBehaviour
             }
         }
 
-        // 시뮬레이션 중이라면 전체 경로를 다시 그리고 색상을 상태에 맞게 칠함 (막힌 곳은 빨간색)
-        if (!isRealMap)
-        {
-            DrawAllPaths(targetMap);
-            UpdatePathVisualizationColor(targetMap);
-        }
-        else
+        if (isRealMap)
         {
             DrawAllPaths(_realMapData);
+            UpdatePathVisualizationColor(_pathLines, _realMapData, false);
         }
 
         // 디버그용
-        if (isRealMap)
-        {
-            Debug.Log($"<color=orange><b>[Path Debug]</b> 구조물 제거 완료 - 위치: ({x}, {z})</color>");
-            // 제거 후 스폰 지점 경로 샘플링
-            PrintDebugPath("제거 후(After)", targetMap);
-        }
+        //if (isRealMap)
+        //{
+        //    Debug.Log($"<color=orange><b>[Path Debug]</b> 구조물 제거 완료 - 위치: ({x}, {z})</color>");
+        //    // 제거 후 스폰 지점 경로 샘플링
+        //    PrintDebugPath("제거 후(After)", targetMap);
+        //}
     }
 
     public void UpdatePathAt(int x, int z) => UpdatePathAt(x, z, _realMapData);
@@ -779,9 +877,9 @@ public class PlayerInputManager : MonoBehaviour
             if (nx >= 0 && nx < _mapWidth && nz >= 0 && nz < _mapHeight)
             {
                 float d = MapData[nx, nz].distanceToGoal;
-                if (d != -1f)
+                if (d != -1f && IsValidDiagonalMove(pos.x, pos.y, nx, nz, MapData))
                 {
-                    float bias = (((uint)(nx * 73856093 ^ nz * 19349663)) % 1024) * 0.0000001f;
+                    float bias = BiasForTile(nx, nz);
                     float totalCost = d + baseCosts8[i] + bias;
 
                     if (totalCost < minDist)
@@ -822,6 +920,26 @@ public class PlayerInputManager : MonoBehaviour
                 }
             }
         }
+    }
+
+    // 대각선 이동 시 양옆이 벽인지 체크하는 함수
+    private bool IsValidDiagonalMove(int currX, int currZ, int nx, int nz, TileInfo[,] targetMap)
+    {
+        // 1. 직선 이동인 경우(x나 z가 하나라도 같음) 무조건 통과
+        if (currX == nx || currZ == nz) return true;
+
+        // 2. 대각선 이동일 때 인접타일이 하나라도 벽(objType > 1)이면 이동 불가
+        if (targetMap[nx, currZ].objType > 1 || targetMap[currX, nz].objType > 1)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private float BiasForTile(int x, int z)
+    {
+        return (x + z * _mapWidth) / (_mapWidth*_mapHeight* _mapWidth * _mapHeight * 2);
     }
 
     void OnDestroy()

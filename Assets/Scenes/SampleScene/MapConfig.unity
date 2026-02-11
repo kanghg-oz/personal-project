@@ -157,10 +157,12 @@ MonoBehaviour:
   - {fileID: 137291322052056278, guid: 28ea16288b7657446857a0a22be43832, type: 3}
   TowerPrefabs:
   - {fileID: 1259720694592211962, guid: ceb2db65f0b97ea4c98570d22db57fb3, type: 3}
-  - {fileID: 8968387855485255426, guid: e345ebb850a775d418e43e5766b5ce6e, type: 3}
+  - {fileID: 9051805935479700781, guid: bff0604294266e7429d685f4ed6ea949, type: 3}
   - {fileID: 2466625719166387926, guid: 3784a3a2a9b5a264fa33fb1cb8d7766a, type: 3}
   - {fileID: 7520462633741781383, guid: 5bfd616b837928543aebd9cc9b02a5fa, type: 3}
-  MonsterPrefab: {fileID: 6704677112800837949, guid: a2a16a4d0cd404849b9e9c3318de6bd3, type: 3}
+  MonsterPrefabs:
+  - {fileID: 1384361764383693412, guid: 638bade9220ca9f449f8869eba6f28f3, type: 3}
+  - {fileID: 6704677112800837949, guid: a2a16a4d0cd404849b9e9c3318de6bd3, type: 3}
 --- !u!4 &960454985
 Transform:
   m_ObjectHideFlags: 0
