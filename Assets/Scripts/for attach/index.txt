@@ -1,0 +1,88 @@
+import { render, View, Label, Button } from "onejs-react";
+import { useThrottledSync } from "onejs-react";
+
+const pm = CS.UnityEngine.GameObject.Find("InputManager")
+const pmInput = pm?.GetComponent("PlayerInputManager")
+
+function App() {
+    const hasSelection = useThrottledSync(() => pmInput.HasSelection, 100)
+    const mouseX = useThrottledSync(() => pmInput.JS_MouseX, 100)
+    const mouseY = useThrottledSync(() => pmInput.JS_MouseY, 100)
+    const objType = useThrottledSync(() => pmInput.JS_Obj, 100)
+    const gamePhase = useThrottledSync(() => pmInput.GamePhase, 100)
+    const isPathBlocked = useThrottledSync(() => pmInput.IsPathBlocked, 100)
+
+    const handlePhaseChange = () => {
+        const nextPhase = gamePhase === 0 ? 1 : 0;
+        pmInput.SetGamePhase(nextPhase);
+        pmInput.HasSelection = false;
+    }
+
+    // [유지] 선택이 없을 때: 좌상단 버튼만 개별 View로 렌더링
+    if (!hasSelection) {
+        return (
+            <View style={{ position: "absolute", top: 20, left: 20, width: 200 }}>
+                <Button onClick={handlePhaseChange} style={{ padding: 20, backgroundColor: gamePhase === 0 ? "#4CAF50" : "#F44336" }}>
+                    <Label text={gamePhase === 0 ? "건설 모드" : "전투 모드"} />
+                </Button>
+            </View>
+        )
+    }
+
+    // [수정] 버튼 클릭 시 pmInput.BuildTower 내부에서 HasSelection을 false로 만드므로,
+    // 별도의 이벤트 중단 함수 없이도 UI가 즉시 사라지며 간섭을 최소화합니다.
+    return (
+        <>
+            <View style={{ position: "absolute", top: 20, left: 20, width: 200 }}>
+                <Button onClick={handlePhaseChange} style={{ padding: 20, backgroundColor: gamePhase === 0 ? "#4CAF50" : "#F44336" }}>
+                    <Label text={gamePhase === 0 ? "건설 모드" : "전투 모드"} />
+                </Button>
+            </View>
+
+            {gamePhase === 0 && (
+                <>
+                    {objType === 0 ? (
+                        <>
+                            {/* x, y 좌표를 가진 개별 View 버튼들 */}
+                            <MenuButton emoji="🏗️" x={mouseX - 110} y={mouseY - 110} isBlocked={isPathBlocked} 
+                                onClick={() => !isPathBlocked &&pmInput.BuildTowerDirect(0)} />
+                            <MenuButton emoji="💣" x={mouseX + 30} y={mouseY - 110} isBlocked={isPathBlocked}
+                                onClick={() => !isPathBlocked &&pmInput.BuildTowerDirect(1)} />
+                            <MenuButton emoji="ℹ️" x={mouseX - 110} y={mouseY + 30} isBlocked={isPathBlocked}
+                                onClick={() => !isPathBlocked &&pmInput.BuildTowerDirect(2)} />
+                            <MenuButton emoji="❌" x={mouseX + 30} y={mouseY + 30} isBlocked={isPathBlocked}
+                                onClick={() => !isPathBlocked &&pmInput.BuildTowerDirect(3)} />
+                        </>
+                    ) : (
+                        objType > 1 ? ( // 0(빈칸), 1(목표)이 아닐 때만 노출
+                            <MenuButton emoji="🗑️" x={mouseX - 40} y={mouseY - 40} onClick={() => pmInput.RemoveObjectDirect()} />
+                        ) : null
+                    )}
+                </>
+            )}
+        </>
+    )
+}
+
+function MenuButton({ emoji, x, y, onClick, isBlocked }: { emoji: string, x: number, y: number, onClick: () => void, isBlocked?: boolean }) {
+    return (
+        <View style={{ position: "absolute", left: x, top: y, width: 80, height: 80 }}>
+            {/* stopPropagation 없이 순수 onClick만 사용 */}
+            <Button onClick={onClick} style={{
+                width: "100%",
+                height: "100%",
+                backgroundColor: "#222",
+                borderWidth: 3,
+                borderColor: "white",
+                borderRadius: 40,
+                justifyContent: "center",
+                alignItems: "center",
+                opacity: isBlocked ? 0.3 : 1
+            }}>
+                <Label text={emoji} style={{ fontSize: 32 }} />
+            </Button>
+        </View>
+    )
+}
+
+render(<App />, __root)

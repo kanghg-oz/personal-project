@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 6726934764635591535}
   - component: {fileID: 681729072095577954}
   - component: {fileID: 3241768094846624755}
+  - component: {fileID: -8127557121388127083}
   m_Layer: 0
   m_Name: wall
   m_TagString: Untagged
@@ -90,3 +91,24 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &-8127557121388127083
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7520462633741781383}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 31a89c705c336ec42b932b4e97f9be7d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TowerAuthoring
+  Damage: 10
+  AttackSpeed: 1
+  RangeType: 0
+  MaxRange: 5
+  MinRange: 0
+  RangeAngle: 360
+  RangeOffset: {x: 0, y: 0, z: 0}
+  BulletPrefab: {fileID: 1772965098438808138, guid: b3a90a5a1ee2b6a49b2125f1320c95e1, type: 3}
+  ExplosionVFX: {fileID: 0}

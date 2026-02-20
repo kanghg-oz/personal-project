@@ -17,6 +17,7 @@ public partial struct MapSpawnSystem : ISystem
         // 1. 매니저 대기
         if (PlayerInputManager.Instance == null) return;
 
+        // 한 프레임만 실행
         state.Enabled = false;
 
         var entityManager = state.EntityManager;

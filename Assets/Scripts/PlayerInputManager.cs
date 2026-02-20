@@ -1,7 +1,9 @@
 ﻿using OneJS;
 using System;
 using System.Collections.Generic;
+using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
@@ -14,6 +16,24 @@ public struct TileInfo
     public int objType;
     public float distanceToGoal;
     public int2 preTile;
+}
+
+[Serializable]
+public struct TowerUiInfo
+{
+    public int Index;
+    public string Name;
+    public float Damage;
+    public float AttackSpeed;
+    public float MaxRange;
+    public float MinRange;
+    public string AttackType;
+}
+
+[Serializable]
+public class TowerUiInfoList
+{
+    public List<TowerUiInfo> Items = new List<TowerUiInfo>();
 }
 
 public class PlayerInputManager : MonoBehaviour
@@ -60,6 +80,7 @@ public class PlayerInputManager : MonoBehaviour
     [HideInInspector] public int GamePhase { get; set; } = 0;
     [HideInInspector] public bool IsPathBlocked { get; private set; } = false;
     [HideInInspector] public bool IsRemoveRequestPending = false;
+    [HideInInspector] public string TowerInfosJson { get; private set; } = string.Empty;
 
     [Header("Input Actions")]
     public InputActionReference clickAction;
@@ -126,6 +147,52 @@ public class PlayerInputManager : MonoBehaviour
         _markerInstance.SetActive(false);
 
         LoadSpawnPointsForVisual(Resources.Load<TextAsset>("spawn_pos").text);
+        RefreshTowerInfos();
+    }
+
+    public void RefreshTowerInfos()
+    {
+        var world = World.DefaultGameObjectInjectionWorld;
+        if (world == null)
+        {
+            TowerInfosJson = string.Empty;
+            return;
+        }
+
+        var em = world.EntityManager;
+        var query = em.CreateEntityQuery(typeof(MapConfig));
+        if (query.IsEmptyIgnoreFilter)
+        {
+            TowerInfosJson = string.Empty;
+            return;
+        }
+
+        var configEntity = query.GetSingletonEntity();
+        var towerBuffer = em.GetBuffer<TowerPrefabElement>(configEntity);
+        var list = new TowerUiInfoList();
+
+        for (int i = 0; i < towerBuffer.Length; i++)
+        {
+            var towerEntity = towerBuffer[i].Value;
+            if (!em.HasComponent<TowerData>(towerEntity))
+            {
+                continue;
+            }
+
+            var data = em.GetComponentData<TowerData>(towerEntity);
+            list.Items.Add(new TowerUiInfo
+            {
+                Index = i,
+                Name = data.Name.ToString(),
+                Damage = data.Damage,
+                AttackSpeed = data.AttackSpeed,
+                MaxRange = data.MaxRange,
+                MinRange = data.MinRange,
+                AttackType = data.RangeType.ToString()
+            });
+        }
+
+        TowerInfosJson = JsonUtility.ToJson(list);
     }
 
     public void RemoveObject()
@@ -391,23 +458,6 @@ public class PlayerInputManager : MonoBehaviour
         }
     }
 
-    // [추가] JS에서 호출할 건설 함수
-    public void BuildTower(int towerIndex)
-    {
-        //if (IsPathBlocked)
-        //{
-        //    Debug.LogWarning("<color=red>[Build] 경로가 막혀 건설할 수 없습니다!</color>");
-        //    return;
-        //}
-        if (CheckIfAnyPathBlocked(_simMapData)) return; // 마지막 시뮬레이션 결과로 판단
-
-        PendingTowerIndex = towerIndex;
-        IsBuildRequestPending = true;
-        // 건설이 확정되었으므로 시뮬레이션 좌표를 초기화하여 복구 로직이 실행되지 않게 함
-        HidePreviewLines();
-        _lastSelectedPos = new int2(-1, -1);
-        HasSelection = false;
-    }
 
     public void OnJSMenuAction(string actionName)
     {
@@ -940,6 +990,92 @@ public class PlayerInputManager : MonoBehaviour
     private float BiasForTile(int x, int z)
     {
         return (x + z * _mapWidth) / (_mapWidth*_mapHeight* _mapWidth * _mapHeight * 2);
+    }
+
+
+    public void BuildTowerDirect(int towerIdx)
+    {
+        int x = this.JS_X;
+        int z = this.JS_Z;
+        if (CheckIfAnyPathBlocked(this._simMapData)) return;
+
+        var world = World.DefaultGameObjectInjectionWorld;
+        var em = world.EntityManager;
+
+        var configQuery = em.CreateEntityQuery(typeof(MapConfig));
+        Entity configEntity = configQuery.GetSingletonEntity();
+        var prefabBuffer = em.GetBuffer<TowerPrefabElement>(configEntity);
+
+        // 1. 프리팹 엔티티 복제 
+        Entity prefabEntity = prefabBuffer[towerIdx].Value;
+        Entity towerEntity = em.Instantiate(prefabEntity);
+
+        // 2. 구조적 변화 후 버퍼 재확보
+        var objData = em.GetBuffer<ObjectDataElement>(configEntity);
+        var objEntities = em.GetBuffer<ObjectEntityElement>(configEntity);
+
+        // 3. 위치 설정 
+        var prefabTr = em.GetComponentData<LocalTransform>(prefabEntity);
+        em.SetComponentData(towerEntity, prefabTr.WithPosition(new float3(x, 0.2f, z)));
+
+        // 4. 맵 데이터 및 상태 업데이트
+        int dataIndex = z * _mapWidth + x;
+        int pickingId = dataIndex + 1; // ProcessPickedID의 index = id - 1 대응
+        em.SetComponentData(towerEntity, new PickingIdColor { Value = IndexToColor(pickingId) });
+        objData[dataIndex] = new ObjectDataElement { Value = 100 + towerIdx };
+        objEntities[dataIndex] = new ObjectEntityElement { Value = towerEntity };
+
+        this.SetTileData(x, z, this.JS_Floor, 100 + towerIdx);
+        this.UpdatePathAt(x, z);
+        this.HasSelection = false;
+    }
+
+    public void RemoveObjectDirect()
+    {
+        if (JS_Obj <= 1) return;
+
+        var world = World.DefaultGameObjectInjectionWorld;
+        var em = world.EntityManager;
+        var configQuery = em.CreateEntityQuery(typeof(MapConfig));
+        Entity configEntity = configQuery.GetSingletonEntity();
+
+        // 1. 구조적 변화 전: 타겟 엔티티와 인덱스 미리 확보
+        int dataIndex = JS_Z * _mapWidth + JS_X;
+        var objEntitiesInitial = em.GetBuffer<ObjectEntityElement>(configEntity);
+        Entity targetEntity = objEntitiesInitial[dataIndex].Value;
+
+        // 2. 구조적 변화 발생: 엔티티 파괴
+        if (targetEntity != Entity.Null && em.Exists(targetEntity))
+        {
+            em.DestroyEntity(targetEntity);
+        }
+
+        // 3. [중요] 파괴 직후: 무효화된 버퍼들을 다시 가져와서 업데이트
+        var objData = em.GetBuffer<ObjectDataElement>(configEntity);
+        var objEntities = em.GetBuffer<ObjectEntityElement>(configEntity);
+
+        objData[dataIndex] = new ObjectDataElement { Value = 0 };
+        objEntities[dataIndex] = new ObjectEntityElement { Value = Entity.Null };
+
+        // 4. 경로 및 데이터 초기화
+        this.JS_Obj = 0;
+        this.SetTileData(JS_X, JS_Z, JS_Floor, 0);
+        this.UpdatePathAt(JS_X, JS_Z);
+
+        this.HasSelection = false;
+    }
+
+    public void SetGamePhase(int phase)
+    {
+        GamePhase = phase;
+    }
+
+    private static float4 IndexToColor(int id)
+    {
+        float r = (id & 0xFF) / 255f;
+        float g = ((id >> 8) & 0xFF) / 255f;
+        float b = ((id >> 16) & 0xFF) / 255f;
+        return new float4(r, g, b, 1f);
     }
 
     void OnDestroy()

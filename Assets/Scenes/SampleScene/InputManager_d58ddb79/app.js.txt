@@ -14392,15 +14392,23 @@ function useThrottledSync(getter, intervalMs, deps = []) {
 var import_jsx_runtime4 = __toESM(require_jsx_runtime(), 1);
 var pm = CS.UnityEngine.GameObject.Find("InputManager");
 var pmInput = pm?.GetComponent("PlayerInputManager");
+var towerInfoLoaded = false;
 function App() {
+  if (pmInput?.RefreshTowerInfos && (!towerInfoLoaded || !pmInput.TowerInfosJson)) {
+    pmInput.RefreshTowerInfos();
+    if (pmInput.TowerInfosJson && pmInput.TowerInfosJson.length > 0) {
+      towerInfoLoaded = true;
+    }
+  }
   const hasSelection = useThrottledSync(() => pmInput.HasSelection, 100);
-  const mouseX = useThrottledSync(() => pmInput.JS_MouseX, 100);
-  const mouseY = useThrottledSync(() => pmInput.JS_MouseY, 100);
   const objType = useThrottledSync(() => pmInput.JS_Obj, 100);
   const gamePhase = useThrottledSync(() => pmInput.GamePhase, 100);
   const isPathBlocked = useThrottledSync(() => pmInput.IsPathBlocked, 100);
+  const towerInfosJson = useThrottledSync(() => pmInput.TowerInfosJson, 500);
+  const towerInfos = towerInfosJson ? JSON.parse(towerInfosJson).Items ?? [] : [];
   const handlePhaseChange = () => {
-    pmInput.GamePhase = gamePhase === 0 ? 1 : 0;
+    const nextPhase = gamePhase === 0 ? 1 : 0;
+    pmInput.SetGamePhase(nextPhase);
     pmInput.HasSelection = false;
   };
   if (!hasSelection) {
@@ -14408,65 +14416,55 @@ function App() {
   }
   return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_jsx_runtime4.Fragment, { children: [
     /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(View, { style: { position: "absolute", top: 20, left: 20, width: 200 }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Button, { onClick: handlePhaseChange, style: { padding: 20, backgroundColor: gamePhase === 0 ? "#4CAF50" : "#F44336" }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: gamePhase === 0 ? "\uAC74\uC124 \uBAA8\uB4DC" : "\uC804\uD22C \uBAA8\uB4DC" }) }) }),
-    gamePhase === 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_jsx_runtime4.Fragment, { children: objType === 0 ? /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_jsx_runtime4.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-        MenuButton,
-        {
-          emoji: "\u{1F3D7}\uFE0F",
-          x: mouseX - 110,
-          y: mouseY - 110,
-          isBlocked: isPathBlocked,
-          onClick: () => !isPathBlocked && pmInput.BuildTower(0)
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-        MenuButton,
-        {
-          emoji: "\u{1F4A3}",
-          x: mouseX + 30,
-          y: mouseY - 110,
-          isBlocked: isPathBlocked,
-          onClick: () => !isPathBlocked && pmInput.BuildTower(1)
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-        MenuButton,
-        {
-          emoji: "\u2139\uFE0F",
-          x: mouseX - 110,
-          y: mouseY + 30,
-          isBlocked: isPathBlocked,
-          onClick: () => !isPathBlocked && pmInput.BuildTower(2)
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-        MenuButton,
-        {
-          emoji: "\u274C",
-          x: mouseX + 30,
-          y: mouseY + 30,
-          isBlocked: isPathBlocked,
-          onClick: () => !isPathBlocked && pmInput.BuildTower(3)
-        }
-      )
-    ] }) : objType > 1 ? (
-      // 0(빈칸), 1(목표)이 아닐 때만 노출
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(MenuButton, { emoji: "\u{1F5D1}\uFE0F", x: mouseX - 40, y: mouseY - 40, onClick: () => pmInput.RemoveObject() })
-    ) : null })
+    gamePhase === 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_jsx_runtime4.Fragment, { children: [
+      hasSelection && objType === 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(TowerSlidePanel, { towerInfos, isBlocked: isPathBlocked }),
+      hasSelection && objType > 1 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(TowerSlidePanel, { towerInfos: [], isBlocked: false, onRemove: () => pmInput.RemoveObjectDirect() })
+    ] })
   ] });
 }
-function MenuButton({ emoji, x, y, onClick, isBlocked }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(View, { style: { position: "absolute", left: x, top: y, width: 80, height: 80 }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Button, { onClick, style: {
+function TowerSlidePanel({ towerInfos, isBlocked, onRemove }) {
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(View, { style: { position: "absolute", left: 0, right: 0, bottom: 0, height: "25%", paddingLeft: 12, paddingRight: 12, paddingTop: 0, paddingBottom: 0, backgroundColor: "#111" }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+    ScrollView,
+    {
+      style: { width: "100%", height: "100%" },
+      children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(View, { style: { flexDirection: "row", alignItems: "stretch", height: "100%" }, children: [
+        onRemove && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(TowerButton, { label: "\uC81C\uAC70", detailLines: ["\uC624\uBE0C\uC81D\uD2B8 \uC81C\uAC70"], isBlocked: false, onClick: onRemove }),
+        towerInfos.map((tower, index) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+          TowerButton,
+          {
+            label: `\uD0C0\uC6CC ${tower.Name}`,
+            detailLines: [
+              ``,
+              `\uACF5\uACA9\uB825 ${Number(tower.Damage).toFixed(1)}`,
+              `\uC0AC\uAC70\uB9AC ${Number(tower.MaxRange).toFixed(1)}`,
+              `\uACF5\uC18D ${Number(tower.AttackSpeed).toFixed(2)}`,
+              `\uD0C0\uC785 ${tower.AttackType}`
+            ],
+            isBlocked,
+            onClick: () => !isBlocked && pmInput.BuildTowerDirect(tower.Index)
+          },
+          index
+        ))
+      ] })
+    }
+  ) });
+}
+function TowerButton({ label, detailLines, onClick, isBlocked }) {
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(View, { style: { width: 200, height: "100%", marginRight: 12 }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Button, { onClick, style: {
     width: "100%",
     height: "100%",
     backgroundColor: "#222",
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: "white",
-    borderRadius: 40,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
     opacity: isBlocked ? 0.3 : 1
-  }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: emoji, style: { fontSize: 32 } }) }) });
+  }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(View, { style: { alignItems: "center", paddingLeft: 6, paddingRight: 6, height: "100%", justifyContent: "center" }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: label, style: { fontSize: 14, color: "white" } }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(View, { style: { height: 10 } }),
+    detailLines.map((line, idx) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: line, style: { fontSize: 12, color: "#ddd", marginBottom: idx < detailLines.length - 1 ? 4 : 0 } }, idx))
+  ] }) }) });
 }
 render(/* @__PURE__ */ (0, import_jsx_runtime4.jsx)(App, {}), __root);
 /*! Bundled license information:
