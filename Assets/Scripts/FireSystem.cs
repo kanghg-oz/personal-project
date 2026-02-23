@@ -64,9 +64,9 @@ public partial struct FireSystem : ISystem
                         }
                     }
 
-                    if (tower.ValueRO.AttackType == TowerAttackType.Direct)
+                    if (tower.ValueRO.AttackType == TowerAttackType.Hit)
                     {
-                        if (tower.ValueRO.AttackArea > 0f)
+                        if (tower.ValueRO.IsAoe && tower.ValueRO.AttackArea > 0f)
                         {
                             // 광역(AoE) 즉시 피해
                             float radius = tower.ValueRO.AttackArea * 0.5f;
@@ -191,7 +191,19 @@ public partial struct FireSystem : ISystem
                             // 타워와 몬스터 사이의 거리 계산 (2D)
                             float distance = math.distance(new float2(towerPos.x, towerPos.z), new float2(targetPos.x, targetPos.z));
                             float shaderLength = distance;
+                            
                             float bulletSpeed = tower.ValueRO.BulletSpeed;
+                            float bulletHeight = tower.ValueRO.BulletHeight;
+
+                            // Direct 타입(직선 궤적)일 경우 속도 보정 및 높이 0 설정
+                            if (tower.ValueRO.AttackType == TowerAttackType.Direct)
+                            {
+                                // 거리가 가까울수록 도달 시간이 짧아지도록(즉, Timer 증가 속도인 Speed가 커지도록) 보정
+                                // 1/T = V/D 공식에 따라 (원래속도 * 최대사거리 / 현재거리)로 계산
+                                float safeDistance = math.max(distance, 0.1f);
+                                bulletSpeed = bulletSpeed * (tower.ValueRO.MaxRange / safeDistance);
+                                bulletHeight = 0f;
+                            }
 
                             ecb.SetComponent(bullet, new BulletData
                             {
@@ -203,6 +215,7 @@ public partial struct FireSystem : ISystem
                                 TargetEntity = targetEntity,
                                 TowerEntity = towerEntity, // 타워 엔티티 저장 (VFX 풀 접근용)
                                 AttackType = tower.ValueRO.AttackType,
+                                IsAoe = tower.ValueRO.IsAoe,
                                 AttackArea = tower.ValueRO.AttackArea
                             });
                             
@@ -211,7 +224,7 @@ public partial struct FireSystem : ISystem
                                 LastFireTime = currentTime,
                                 Speed = bulletSpeed,
                                 Length = shaderLength,
-                                Height = tower.ValueRO.BulletHeight  // 타워에서 가져온 값 사용
+                                Height = bulletHeight
                             });
                         }
                     }
@@ -231,7 +244,7 @@ public partial struct FireSystem : ISystem
             if (bullet.ValueRO.Timer >= 1.0f && bullet.ValueRO.Timer < 2.0f)
             {
                 // 도달 시점 이벤트(데미지, 폭발 등) 처리
-                if (bullet.ValueRO.AttackType == TowerAttackType.Aoe)
+                if (bullet.ValueRO.IsAoe)
                 {
                     // Aoe: 도달 지점(EndPos)을 중심으로 반경(AttackArea / 2) 내의 모든 적에게 피해
                     float radius = bullet.ValueRO.AttackArea * 0.5f;
@@ -264,6 +277,7 @@ public partial struct FireSystem : ISystem
                                 var mData = SystemAPI.GetComponent<MonsterData>(mEntity);
                                 mData.HP -= bullet.ValueRO.Damage;
                                 
+
                                 if (mData.HP <= 0)
                                 {
                                     ecb.DestroyEntity(mEntity);
@@ -290,6 +304,7 @@ public partial struct FireSystem : ISystem
                                 var mData = SystemAPI.GetComponent<MonsterData>(mEntity);
                                 mData.HP -= bullet.ValueRO.Damage;
                                 
+
                                 if (mData.HP <= 0)
                                 {
                                     ecb.DestroyEntity(mEntity);
@@ -377,8 +392,10 @@ public partial struct FireSystem : ISystem
         float3 attackCenter = towerPos;
         if (towerData.RangeType == TowerRangeType.OffsetCircle)
         {
-            // 타워의 회전을 고려하여 오프셋 적용
-            attackCenter = towerPos + math.rotate(towerRotation, towerData.RangeOffset);
+            // 타워의 회전을 고려하여 오프셋 적용. Y축 변화를 배제하여 정확한 2D 평면 위치를 계산함
+            float3 worldOffset = math.rotate(towerRotation, towerData.RangeOffset);
+            attackCenter = towerPos + new float3(worldOffset.x, 0, worldOffset.z);
+            
             // OffsetCircle의 실제 타격 반경은 MinRange로 가정
             maxRangeSq = towerData.MinRange * towerData.MinRange;
         }

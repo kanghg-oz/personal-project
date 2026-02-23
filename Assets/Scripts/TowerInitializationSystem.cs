@@ -27,7 +27,7 @@ public partial struct TowerInitializationSystem : ISystem
                     // 초기 위치는 타워 위치, 타이머는 2.0 이상으로 설정하여 렌더링되지 않게 함
                     ecb.SetComponent(bullet, LocalTransform.FromPosition(transform.ValueRO.Position));
                     
-                    if (tower.ValueRO.AttackType != TowerAttackType.Direct)
+                    if (tower.ValueRO.AttackType != TowerAttackType.Hit)
                     {
                         ecb.SetComponent(bullet, new BulletData { Timer = 2.0f, Speed = tower.ValueRO.BulletSpeed });
                     }
@@ -38,7 +38,8 @@ public partial struct TowerInitializationSystem : ISystem
 
             if (vfxBuffer.Length == 0 && tower.ValueRO.ExplosionPrefab != Entity.Null)
             {
-                float scale = tower.ValueRO.AttackType == TowerAttackType.Aoe ? tower.ValueRO.AttackArea : 1f;
+                // 스케일 설정
+                float scale = tower.ValueRO.IsAoe ? tower.ValueRO.AttackArea : 1f;
                 
                 for (int i = 0; i < tower.ValueRO.VFXPoolSize; i++)
                 {

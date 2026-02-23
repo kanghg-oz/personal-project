@@ -129,7 +129,8 @@ public class PlayerInputManager : MonoBehaviour
                         var towerData = em.GetComponentData<TowerData>(towerEntity);
                         var towerTransform = em.GetComponentData<LocalTransform>(towerEntity);
                         JS_TowerRangeType = (int)towerData.RangeType;
-                        _rangeVisualizer.ShowRange(towerData, towerTransform.Position, towerTransform.Rotation);
+                        // 시각적 회전이 아닌 논리적 회전을 사용하여 사거리 표시
+                        _rangeVisualizer.ShowRange(towerData, towerTransform.Position, towerData.LogicalRotation);
                     }
                 }
             }
@@ -254,7 +255,7 @@ public class PlayerInputManager : MonoBehaviour
                 AttackSpeed = data.AttackSpeed,
                 MaxRange = data.MaxRange,
                 MinRange = data.MinRange,
-                AttackType = data.RangeType.ToString()
+                AttackType = data.AttackType.ToString() + (data.IsAoe ? " (AoE)" : "")
             });
         }
 
@@ -742,7 +743,7 @@ public class PlayerInputManager : MonoBehaviour
         Vector2 panelPos = RuntimePanelUtils.ScreenToPanel(panel, screenPos);
         VisualElement pickedElement = panel.Pick(panelPos);
 
-        // 1. UI 클릭인지 가장 먼저 검���하여 무시
+        // 1. UI 클릭인지 가장 먼저 검토하여 무시
         if (pickedElement != null && pickedElement != _rootElement)
         {
             return; // UI 클릭이므로 타일 픽킹 안 함
@@ -862,7 +863,8 @@ public class PlayerInputManager : MonoBehaviour
                             var towerData = em.GetComponentData<TowerData>(towerEntity);
                             var towerTransform = em.GetComponentData<LocalTransform>(towerEntity);
                             JS_TowerRangeType = (int)towerData.RangeType;
-                            _rangeVisualizer.ShowRange(towerData, towerTransform.Position, towerTransform.Rotation);
+                            // 시각적 회전이 아닌 논리적 회전을 사용하여 사거리 표시
+                            _rangeVisualizer.ShowRange(towerData, towerTransform.Position, towerData.LogicalRotation);
                         }
                     }
                 }

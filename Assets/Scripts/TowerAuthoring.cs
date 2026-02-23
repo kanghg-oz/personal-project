@@ -24,7 +24,7 @@ public enum TowerAttackType
 {
     Default,
     Direct,
-    Aoe
+    Hit
 }
 
 public class TowerAuthoring : MonoBehaviour
@@ -35,6 +35,7 @@ public class TowerAuthoring : MonoBehaviour
     public float AttackSpeed = 1f;
     public TowerRangeType RangeType = TowerRangeType.Default;
     public TowerAttackType AttackType = TowerAttackType.Default;
+    public bool IsAoe = false; // 광역 피해 여부
     public float AttackArea = 2f; // Aoe 타입일 때 피해를 입히는 지름
     public bool Rotationable = true; // 타워가 타겟을 바라보도록 회전할지 여부
 
@@ -106,8 +107,10 @@ public class TowerAuthoring : MonoBehaviour
                 RangeOffset = authoring.RangeOffset,
                 RangeType = authoring.RangeType,
                 AttackType = authoring.AttackType,
+                IsAoe = authoring.IsAoe,
                 AttackArea = authoring.AttackArea,
                 Rotationable = authoring.Rotationable,
+                InverseRange = 1.0f / (maxR + 0.1f), // 나눗셈 최적화를 위한 역수 계산
                 BulletPrefab = GetEntity(authoring.BulletPrefab, TransformUsageFlags.Dynamic),
                 ExplosionPrefab = GetEntity(authoring.ExplosionVFX, TransformUsageFlags.Dynamic),
                 TargetMonster = Entity.Null,
@@ -151,8 +154,10 @@ public struct TowerData : IComponentData
     public float3 RangeOffset;
     public TowerRangeType RangeType;
     public TowerAttackType AttackType;
+    public bool IsAoe;
     public float AttackArea;
     public bool Rotationable;
+    public float InverseRange;
 
     // --- Assets (referenced) ---
     public Entity BulletPrefab;    

@@ -107,8 +107,10 @@ MonoBehaviour:
   Damage: 1
   AttackSpeed: 1
   RangeType: 1
-  AttackType: 0
+  AttackType: 1
+  IsAoe: 0
   AttackArea: 2
+  Rotationable: 1
   MaxRange: 5
   MinRange: 0
   RangeAngle: 60

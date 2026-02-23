@@ -108,12 +108,14 @@ MonoBehaviour:
   AttackSpeed: 1
   RangeType: 0
   AttackType: 0
+  IsAoe: 0
   AttackArea: 2
+  Rotationable: 1
   MaxRange: 3
   MinRange: 0
   RangeAngle: 360
   RangeOffset: {x: 1, y: 0, z: 0}
   BulletSpeed: 2
-  BulletHeight: 3
+  BulletHeight: 1.5
   BulletPrefab: {fileID: 1772965098438808138, guid: b3a90a5a1ee2b6a49b2125f1320c95e1, type: 3}
   ExplosionVFX: {fileID: 0}
