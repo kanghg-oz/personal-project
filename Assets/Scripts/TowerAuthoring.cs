@@ -20,6 +20,13 @@ public enum TowerRangeType
     Wall          // 벽
 }
 
+public enum TowerAttackType
+{
+    Default,
+    Direct,
+    Aoe
+}
+
 public class TowerAuthoring : MonoBehaviour
 {
     [Header("Basic Stats")]
@@ -27,12 +34,19 @@ public class TowerAuthoring : MonoBehaviour
     public int Damage = 10;
     public float AttackSpeed = 1f;
     public TowerRangeType RangeType = TowerRangeType.Default;
+    public TowerAttackType AttackType = TowerAttackType.Default;
+    public float AttackArea = 2f; // Aoe 타입일 때 피해를 입히는 지름
+    public bool Rotationable = true; // 타워가 타겟을 바라보도록 회전할지 여부
 
     [Header("Range Config (Fill only what's needed)")]
     public float MaxRange = 5f;
     public float MinRange = 0f;    // Annulus용
     public float RangeAngle = 360f; // Sector용
     public Vector3 RangeOffset;    // Offset용
+
+    [Header("Bullet Config")]
+    public float BulletSpeed = 10f;
+    public float BulletHeight = 1f;
 
     [Header("Attack Visuals")]
     public GameObject BulletPrefab;
@@ -56,16 +70,8 @@ public class TowerAuthoring : MonoBehaviour
                 ? authoring.gameObject.name
                 : authoring.TowerName;
 
-            // 탄환 속도 가져오기 (BulletPrefab에 BulletAuthoring이 있다고 가정)
-            float bulletSpeed = 10f; // 기본값
-            if (authoring.BulletPrefab != null)
-            {
-                var bulletAuth = authoring.BulletPrefab.GetComponent<BulletAuthoring>();
-                if (bulletAuth != null)
-                {
-                    bulletSpeed = bulletAuth.Speed;
-                }
-            }
+            float bulletSpeed = authoring.BulletSpeed;
+            float bulletHeight = authoring.BulletHeight;
 
             // 폭발 VFX 재생 시간 가져오기
             float vfxDuration = 1.0f; // 기본값
@@ -99,11 +105,16 @@ public class TowerAuthoring : MonoBehaviour
                 RangeAngle = authoring.RangeAngle,
                 RangeOffset = authoring.RangeOffset,
                 RangeType = authoring.RangeType,
+                AttackType = authoring.AttackType,
+                AttackArea = authoring.AttackArea,
+                Rotationable = authoring.Rotationable,
                 BulletPrefab = GetEntity(authoring.BulletPrefab, TransformUsageFlags.Dynamic),
                 ExplosionPrefab = GetEntity(authoring.ExplosionVFX, TransformUsageFlags.Dynamic),
                 TargetMonster = Entity.Null,
                 AttackTimer = 0f,
+                LogicalRotation = quaternion.identity, // 초기화 시점에는 기본값, 런타임에 설정됨
                 BulletSpeed = bulletSpeed,
+                BulletHeight = bulletHeight,
                 PoolSize = poolSize,
                 CurrentBulletIndex = 0,
                 VFXDuration = vfxDuration,
@@ -121,6 +132,9 @@ public class TowerAuthoring : MonoBehaviour
 
             // VFX 재생 요청 버퍼 추가
             AddBuffer<VFXPlayRequest>(entity);
+            
+            // 발사 VFX 재생 요청 버퍼 추가 (Direct 타입용)
+            AddBuffer<MuzzleVFXPlayRequest>(entity);
         }
     }
 }
@@ -136,6 +150,9 @@ public struct TowerData : IComponentData
     public float RangeAngle;
     public float3 RangeOffset;
     public TowerRangeType RangeType;
+    public TowerAttackType AttackType;
+    public float AttackArea;
+    public bool Rotationable;
 
     // --- Assets (referenced) ---
     public Entity BulletPrefab;    
@@ -144,9 +161,11 @@ public struct TowerData : IComponentData
     // --- Runtime States (가변값) ---
     public Entity TargetMonster;
     public float AttackTimer;
+    public quaternion LogicalRotation; // 로직(사거리 계산 등)에 사용되는 고정된 방향
     
     // --- Bullet Pool Info ---
     public float BulletSpeed;
+    public float BulletHeight;
     public int PoolSize;
     public int CurrentBulletIndex;
     
@@ -159,7 +178,13 @@ public struct TowerData : IComponentData
 [InternalBufferCapacity(10)]
 public struct VFXPlayRequest : IBufferElementData
 {
-    public float3 Position;
+    public Entity VfxEntity;
+}
+
+[InternalBufferCapacity(10)]
+public struct MuzzleVFXPlayRequest : IBufferElementData
+{
+    public Entity VfxEntity;
 }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
@@ -167,30 +192,42 @@ public partial class TowerVFXSystem : SystemBase
 {
     protected override void OnUpdate()
     {
-        // Play VFX from Requests
-        Entities.WithoutBurst().ForEach((ref TowerData towerData, ref DynamicBuffer<VFXPlayRequest> requests, in DynamicBuffer<TowerVFXElement> vfxPool) =>
+        foreach (var (requests, muzzleRequests) in SystemAPI.Query<
+            DynamicBuffer<VFXPlayRequest>,
+            DynamicBuffer<MuzzleVFXPlayRequest>>())
         {
+            // 폭발 VFX 처리
             for (int i = 0; i < requests.Length; i++)
             {
-                if (vfxPool.Length == 0) continue;
-
-                int vfxIdx = towerData.CurrentVFXIndex % vfxPool.Length;
-                Entity vfxEntity = vfxPool[vfxIdx].Value;
-                towerData.CurrentVFXIndex++;
-
-                // Update ECS Transform
-                EntityManager.SetComponentData(vfxEntity, Unity.Transforms.LocalTransform.FromPosition(requests[i].Position));
+                Entity vfxEntity = requests[i].VfxEntity;
 
                 // Play VisualEffect
                 if (EntityManager.HasComponent<VisualEffect>(vfxEntity))
                 {
+                    var localTransform = EntityManager.GetComponentData<Unity.Transforms.LocalTransform>(vfxEntity);
                     var vfx = EntityManager.GetComponentObject<VisualEffect>(vfxEntity);
-                    vfx.transform.position = requests[i].Position; // Sync GameObject transform immediately
+                    vfx.transform.position = localTransform.Position; // Sync GameObject transform immediately
                     vfx.Play();
                 }
             }
             requests.Clear();
-        }).Run();
+
+            // 발사 VFX 처리 (Direct 타입)
+            for (int i = 0; i < muzzleRequests.Length; i++)
+            {
+                Entity muzzleEntity = muzzleRequests[i].VfxEntity;
+
+                // Play VisualEffect
+                if (EntityManager.HasComponent<VisualEffect>(muzzleEntity))
+                {
+                    var localTransform = EntityManager.GetComponentData<Unity.Transforms.LocalTransform>(muzzleEntity);
+                    var vfx = EntityManager.GetComponentObject<VisualEffect>(muzzleEntity);
+                    vfx.transform.position = localTransform.Position; // Sync GameObject transform immediately
+                    vfx.Play();
+                }
+            }
+            muzzleRequests.Clear();
+        }
     }
 }
 

@@ -294,24 +294,34 @@ public class PlayerInputManager : MonoBehaviour
                 quaternion targetRot = quaternion.LookRotationSafe(dragDir, math.up());
                 
                 // 현재 회전값과 목표 회전값 사이의 각도 차이 계산
-                float angleDiff = math.degrees(math.acos(math.dot(transform.Rotation.value, targetRot.value)) * 2f);
+                float angleDiff = math.degrees(math.acos(math.dot(towerData.LogicalRotation.value, targetRot.value)) * 2f);
                 
                 // 최대 회전 각도를 10도로 제한
                 float maxAngle = 10f;
+                quaternion newLogicalRot;
                 if (angleDiff > maxAngle)
                 {
                     // Slerp를 사용하여 최대 각도만큼만 회전
                     float t = maxAngle / angleDiff;
-                    transform.Rotation = math.slerp(transform.Rotation, targetRot, t);
+                    newLogicalRot = math.slerp(towerData.LogicalRotation, targetRot, t);
                 }
                 else
                 {
-                    transform.Rotation = targetRot;
+                    newLogicalRot = targetRot;
                 }
                 
-                em.SetComponentData(_selectedTowerEntity, transform);
+                // 논리적 회전(LogicalRotation) 업데이트
+                towerData.LogicalRotation = newLogicalRot;
+                em.SetComponentData(_selectedTowerEntity, towerData);
+
+                // Rotationable이 true일 때만 시각적 모델 회전
+                if (towerData.Rotationable)
+                {
+                    transform.Rotation = newLogicalRot;
+                    em.SetComponentData(_selectedTowerEntity, transform);
+                }
                 
-                if (_rangeVisualizer != null) _rangeVisualizer.ShowRange(towerData, transform.Position, transform.Rotation);
+                if (_rangeVisualizer != null) _rangeVisualizer.ShowRange(towerData, transform.Position, towerData.LogicalRotation);
             }
         }
         else if (towerData.RangeType == TowerRangeType.OffsetCircle)
@@ -328,9 +338,24 @@ public class PlayerInputManager : MonoBehaviour
             }
             
             towerData.RangeOffset = newOffset;
+
+            // 오프셋 방향을 바라보도록 논리적 회전 업데이트
+            if (math.lengthsq(newOffset) > 0.001f)
+            {
+                quaternion targetRot = quaternion.LookRotationSafe(math.normalize(newOffset), math.up());
+                towerData.LogicalRotation = targetRot;
+
+                // Rotationable이 true일 때만 시각적 모델 회전
+                if (towerData.Rotationable)
+                {
+                    transform.Rotation = targetRot;
+                    em.SetComponentData(_selectedTowerEntity, transform);
+                }
+            }
+
             em.SetComponentData(_selectedTowerEntity, towerData);
             
-            if (_rangeVisualizer != null) _rangeVisualizer.ShowRange(towerData, transform.Position, transform.Rotation);
+            if (_rangeVisualizer != null) _rangeVisualizer.ShowRange(towerData, transform.Position, towerData.LogicalRotation);
         }
     }
 
@@ -708,7 +733,7 @@ public class PlayerInputManager : MonoBehaviour
         Vector2 panelPos = RuntimePanelUtils.ScreenToPanel(panel, screenPos);
         VisualElement pickedElement = panel.Pick(panelPos);
 
-        // 1. UI 클릭인지 가장 먼저 확인하여 무시
+        // 1. UI 클릭인지 가장 먼저 검���하여 무시
         if (pickedElement != null && pickedElement != _rootElement)
         {
             return; // UI 클릭이므로 타일 픽킹 안 함

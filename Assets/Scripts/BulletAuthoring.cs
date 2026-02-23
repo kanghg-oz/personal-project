@@ -5,11 +5,6 @@ using UnityEngine;
 
 public class BulletAuthoring : MonoBehaviour
 {
-    public float Speed = 10f;
-    public float Length = 1f;
-    public float Height = 1f;
-    public int Damage = 10;
-
     public class BulletBaker : Baker<BulletAuthoring>
     {
         public override void Bake(BulletAuthoring authoring)
@@ -20,18 +15,21 @@ public class BulletAuthoring : MonoBehaviour
             {
                 StartPos = float3.zero,
                 EndPos = float3.zero,
-                Speed = authoring.Speed,
+                Speed = 0f,
                 Timer = 0f,
-                Damage = authoring.Damage,
-                TargetEntity = Entity.Null
+                Damage = 0,
+                TargetEntity = Entity.Null,
+                TowerEntity = Entity.Null,
+                AttackType = TowerAttackType.Default,
+                AttackArea = 0f
             });
 
             AddComponent(entity, new BulletAnimation
             {
                 LastFireTime = 0f,
-                Speed = authoring.Speed,
-                Length = authoring.Length,
-                Height = authoring.Height
+                Speed = 0f,
+                Length = 0f,
+                Height = 0f
             });
         }
     }
@@ -46,6 +44,8 @@ public struct BulletData : IComponentData
     public int Damage;
     public Entity TargetEntity;
     public Entity TowerEntity; // 타워 엔티티 저장 (VFX 풀 접근용)
+    public TowerAttackType AttackType;
+    public float AttackArea;
 }
 
 [MaterialProperty("_TimeSpeedLengthHeight")]

@@ -159,8 +159,7 @@ MonoBehaviour:
   - {fileID: 9122402201937015767, guid: 3eac341debcd5e7449804bdec6a7de2a, type: 3}
   - {fileID: 3489361837142362153, guid: b2777b4c8e29bd541bdace0599340767, type: 3}
   - {fileID: 3160744318168390592, guid: 4a13c2d585d2e4a4fa52e7a6f499376a, type: 3}
-  - {fileID: 7520462633741781383, guid: 5bfd616b837928543aebd9cc9b02a5fa, type: 3}
-  - {fileID: 7520462633741781383, guid: 5bfd616b837928543aebd9cc9b02a5fa, type: 3}
+  - {fileID: 6978305883963211710, guid: a55dde381a2b02447b1878d30971f296, type: 3}
   - {fileID: 7520462633741781383, guid: 5bfd616b837928543aebd9cc9b02a5fa, type: 3}
   MonsterPrefabs:
   - {fileID: 6704677112800837949, guid: a2a16a4d0cd404849b9e9c3318de6bd3, type: 3}

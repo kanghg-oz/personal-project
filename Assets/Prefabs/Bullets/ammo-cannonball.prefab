@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 6199751467208033216}
   - component: {fileID: 4361972692504760398}
   - component: {fileID: 84393381021170419}
+  - component: {fileID: 1668397093497958327}
   m_Layer: 0
   m_Name: ammo-cannonball
   m_TagString: Untagged
@@ -90,3 +91,19 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &1668397093497958327
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3990801783980386141}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5c4defa5d59f5954db1e19feb716a8ac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BulletAuthoring
+  Speed: 2
+  Length: 1
+  Height: 2
+  Damage: 10
