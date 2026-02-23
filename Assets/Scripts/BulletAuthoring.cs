@@ -45,6 +45,7 @@ public struct BulletData : IComponentData
     public float Timer; // 0에서 1까지 증가
     public int Damage;
     public Entity TargetEntity;
+    public Entity TowerEntity; // 타워 엔티티 저장 (VFX 풀 접근용)
 }
 
 [MaterialProperty("_TimeSpeedLengthHeight")]

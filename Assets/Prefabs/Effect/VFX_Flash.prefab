@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 5082615019636384125}
   - component: {fileID: 6236955981874423234}
   - component: {fileID: 4414374963783232120}
+  - component: {fileID: 5491409504723056022}
   m_Layer: 0
   m_Name: VFX_Flash
   m_TagString: Untagged
@@ -42,8 +43,8 @@ VisualEffect:
   m_GameObject: {fileID: 7118066044267773357}
   m_Enabled: 1
   m_Asset: {fileID: 8926484042661614526, guid: 3cdbac6cb93015b48ab27db16663b3e2, type: 3}
-  m_InitialEventName: OnPlay
-  m_InitialEventNameOverriden: 0
+  m_InitialEventName: 
+  m_InitialEventNameOverriden: 1
   m_StartSeed: 0
   m_ResetSeedOnPlay: 1
   m_AllowInstancing: 1
@@ -118,3 +119,16 @@ VFXRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
+--- !u!114 &5491409504723056022
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7118066044267773357}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 08198350cd24c6246864ab7cf4e84698, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VFXAuthoring
+  Duration: 0.5

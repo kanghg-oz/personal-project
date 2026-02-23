@@ -86,7 +86,8 @@ public partial struct FireSystem : ISystem
                             Speed = bulletSpeed,
                             Timer = 0f,
                             Damage = tower.ValueRO.Damage,
-                            TargetEntity = targetEntity
+                            TargetEntity = targetEntity,
+                            TowerEntity = towerEntity // 타워 엔티티 저장 (VFX 풀 접근용)
                         });
                         
                         ecb.SetComponent(bullet, new BulletAnimation
@@ -127,6 +128,15 @@ public partial struct FireSystem : ISystem
                         else
                         {
                             ecb.SetComponent(bullet.ValueRO.TargetEntity, monsterData);
+                        }
+
+                        // 폭발 VFX 생성 요청 (버퍼에 추가)
+                        if (bullet.ValueRO.TowerEntity != Entity.Null && SystemAPI.Exists(bullet.ValueRO.TowerEntity))
+                        {
+                            if (SystemAPI.HasBuffer<VFXPlayRequest>(bullet.ValueRO.TowerEntity))
+                            {
+                                ecb.AppendToBuffer(bullet.ValueRO.TowerEntity, new VFXPlayRequest { Position = bullet.ValueRO.EndPos });
+                            }
                         }
                     }
                 }

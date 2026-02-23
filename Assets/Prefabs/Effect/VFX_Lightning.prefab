@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 1289434014843875563}
   - component: {fileID: 3406518622194444405}
   - component: {fileID: 6529919582439938195}
+  - component: {fileID: 944456060616406011}
   m_Layer: 0
   m_Name: VFX_Lightning
   m_TagString: Untagged
@@ -42,8 +43,8 @@ VisualEffect:
   m_GameObject: {fileID: 7979301937965987283}
   m_Enabled: 1
   m_Asset: {fileID: 8926484042661614526, guid: 01ab8ef0d295b964fb81521f388eaa7c, type: 3}
-  m_InitialEventName: OnPlay
-  m_InitialEventNameOverriden: 0
+  m_InitialEventName: 
+  m_InitialEventNameOverriden: 1
   m_StartSeed: 0
   m_ResetSeedOnPlay: 1
   m_AllowInstancing: 1
@@ -118,3 +119,16 @@ VFXRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
+--- !u!114 &944456060616406011
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7979301937965987283}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 08198350cd24c6246864ab7cf4e84698, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VFXAuthoring
+  Duration: 0.7

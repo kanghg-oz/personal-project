@@ -104,7 +104,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TowerAuthoring
   TowerName: "\uCE90\uD130\uD384\uD2B8"
-  Damage: 10
+  Damage: 1
   AttackSpeed: 1
   RangeType: 3
   MaxRange: 3
@@ -112,4 +112,4 @@ MonoBehaviour:
   RangeAngle: 360
   RangeOffset: {x: 1, y: 0, z: 0}
   BulletPrefab: {fileID: 1772965098438808138, guid: b3a90a5a1ee2b6a49b2125f1320c95e1, type: 3}
-  ExplosionVFX: {fileID: 0}
+  ExplosionVFX: {fileID: 7118066044267773357, guid: d8b3d388a1e836841b9f0d96360fc4a3, type: 3}

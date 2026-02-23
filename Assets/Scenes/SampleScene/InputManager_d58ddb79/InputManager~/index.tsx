@@ -2,7 +2,7 @@
 import { useThrottledSync } from "onejs-react";
 
 const pm = CS.UnityEngine.GameObject.Find("InputManager")
-const pmInput = pm?.GetComponent("PlayerInputManager")
+const pmInput = pm?.GetComponent("PlayerInputManager") as any
 let towerInfoLoaded = false
 
 function App() {

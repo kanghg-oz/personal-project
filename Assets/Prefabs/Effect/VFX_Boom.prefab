@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 3933746785741305766}
   - component: {fileID: 5615966690897165097}
   - component: {fileID: 7785940113092391335}
+  - component: {fileID: -3154120270234829363}
   m_Layer: 0
   m_Name: VFX_Boom
   m_TagString: Untagged
@@ -44,8 +45,8 @@ VisualEffect:
   m_GameObject: {fileID: 3087789386843599351}
   m_Enabled: 1
   m_Asset: {fileID: 8926484042661614526, guid: 941b731c0761ab74aa42daa7561b1946, type: 3}
-  m_InitialEventName: OnPlay
-  m_InitialEventNameOverriden: 0
+  m_InitialEventName: 
+  m_InitialEventNameOverriden: 1
   m_StartSeed: 0
   m_ResetSeedOnPlay: 1
   m_AllowInstancing: 1
@@ -164,3 +165,16 @@ MonoBehaviour:
   m_Property:
     m_Name: TransformGetter
   Target: {fileID: 5205008090625937528}
+--- !u!114 &-3154120270234829363
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3087789386843599351}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 08198350cd24c6246864ab7cf4e84698, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VFXAuthoring
+  Duration: 1
