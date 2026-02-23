@@ -1,0 +1,96 @@
+﻿using Unity.Entities;
+using Unity.Mathematics;
+using UnityEngine;
+
+public class TowerDefaultAuthoring : MonoBehaviour
+{
+    [Header("Basic Stats")]
+    public string TowerName;
+    public int Damage = 10;
+    public float AttackSpeed = 1f;
+    public TowerAttackType AttackType = TowerAttackType.Default;
+    public bool Rotationable = true;
+
+    [Header("AoE Config")]
+    public bool IsAoe = false;
+    public float AttackArea = 2f;
+
+    [Header("Range Config")]
+    public float MaxRange = 5f;
+
+    [Header("Bullet Config")]
+    public float BulletSpeed = 10f;
+    public float BulletHeight = 1f;
+
+    [Header("Attack Visuals")]
+    public GameObject BulletPrefab;
+    public GameObject ExplosionVFX;
+
+    public class TowerDefaultBaker : Baker<TowerDefaultAuthoring>
+    {
+        public override void Bake(TowerDefaultAuthoring authoring)
+        {
+            Entity entity = GetEntity(TransformUsageFlags.Dynamic);
+
+            AddComponent(entity, new PickingIdColor());
+            AddComponent(entity, new TowerFireTime { Value = 0f });
+
+            string towerName = string.IsNullOrEmpty(authoring.TowerName) ? authoring.gameObject.name : authoring.TowerName;
+
+            AddComponent(entity, new TowerStats
+            {
+                Name = towerName,
+                Damage = authoring.Damage,
+                AttackSpeed = authoring.AttackSpeed,
+                AttackTimer = 0f,
+                TargetMonster = Entity.Null,
+                Rotationable = authoring.Rotationable,
+                LogicalRotation = quaternion.identity
+            });
+
+            AddComponent(entity, new TowerAttackTypeComponent { Value = authoring.AttackType });
+            AddComponent(entity, new TowerRangeDefault { MaxRange = authoring.MaxRange });
+
+            if (authoring.IsAoe)
+            {
+                AddComponent(entity, new AoEHitAttack { Radius = authoring.AttackArea });
+            }
+            else
+            {
+                AddComponent(entity, new SingleHitAttack());
+            }
+
+            float vfxDuration = 1.0f;
+            if (authoring.ExplosionVFX != null)
+            {
+                var vfxAuth = authoring.ExplosionVFX.GetComponent<VFXAuthoring>();
+                if (vfxAuth != null) vfxDuration = vfxAuth.Duration;
+            }
+
+            int poolSize = Mathf.Max(1, Mathf.CeilToInt((authoring.MaxRange / authoring.BulletSpeed) * authoring.AttackSpeed) + 1);
+            int vfxPoolSize = Mathf.Max(1, Mathf.CeilToInt(vfxDuration * authoring.AttackSpeed) + 1);
+
+            AddComponent(entity, new TowerBulletPool
+            {
+                BulletPrefab = GetEntity(authoring.BulletPrefab, TransformUsageFlags.Dynamic),
+                BulletSpeed = authoring.BulletSpeed,
+                BulletHeight = authoring.BulletHeight,
+                PoolSize = poolSize,
+                CurrentIndex = 0
+            });
+
+            AddComponent(entity, new TowerVFXPool
+            {
+                ExplosionPrefab = GetEntity(authoring.ExplosionVFX, TransformUsageFlags.Dynamic),
+                Duration = vfxDuration,
+                PoolSize = vfxPoolSize,
+                CurrentIndex = 0
+            });
+
+            AddBuffer<TowerBulletElement>(entity);
+            AddBuffer<TowerVFXElement>(entity);
+            AddBuffer<VFXPlayRequest>(entity);
+            AddBuffer<MuzzleVFXPlayRequest>(entity);
+        }
+    }
+}

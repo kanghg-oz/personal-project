@@ -11,7 +11,8 @@ GameObject:
   - component: {fileID: 5830950925720321102}
   - component: {fileID: 8345962829184152362}
   - component: {fileID: 7157267011624964421}
-  - component: {fileID: -263396296238506030}
+  - component: {fileID: -2379755810706884494}
+  - component: {fileID: -5283677283368735620}
   m_Layer: 0
   m_Name: cannon
   m_TagString: Untagged
@@ -91,7 +92,7 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &-263396296238506030
+--- !u!114 &-2379755810706884494
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -100,21 +101,29 @@ MonoBehaviour:
   m_GameObject: {fileID: 3489361837142362153}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 31a89c705c336ec42b932b4e97f9be7d, type: 3}
+  m_Script: {fileID: 11500000, guid: a00ecacf25aee8b41a7ca9c2224ef2fb, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TowerAuthoring
-  TowerName: "\uCE90\uB17C"
-  Damage: 1
+  m_EditorClassIdentifier: Assembly-CSharp::RangeAnnulusAuthoring
+  MaxRange: 5
+  MinRange: 2
+--- !u!114 &-5283677283368735620
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3489361837142362153}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 48e63014735346e4299177220dd7871e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AttackProjectileAuthoring
+  TowerName: "\uCE90\uB10C"
+  Damage: 2
   AttackSpeed: 1
-  RangeType: 2
-  AttackType: 0
-  IsAoe: 1
-  AttackArea: 2
   Rotationable: 1
-  MaxRange: 3
-  MinRange: 1
-  RangeAngle: 360
-  RangeOffset: {x: 0, y: 0, z: 0}
+  IsAoe: 1
+  AttackRadius: 4
   BulletSpeed: 2
   BulletHeight: 2
   BulletPrefab: {fileID: 2215323938189227748, guid: 205bdb6ed29f3274880b06757c5d3aeb, type: 3}

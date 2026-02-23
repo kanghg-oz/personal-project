@@ -11,7 +11,8 @@ GameObject:
   - component: {fileID: 1819255556237867382}
   - component: {fileID: 1538242744810412567}
   - component: {fileID: 4411679979240197193}
-  - component: {fileID: -5874007118341434833}
+  - component: {fileID: 6908828193472786307}
+  - component: {fileID: -4073462877482838217}
   m_Layer: 0
   m_Name: balista
   m_TagString: Untagged
@@ -91,7 +92,7 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &-5874007118341434833
+--- !u!114 &6908828193472786307
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -100,22 +101,29 @@ MonoBehaviour:
   m_GameObject: {fileID: 9122402201937015767}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 31a89c705c336ec42b932b4e97f9be7d, type: 3}
+  m_Script: {fileID: 11500000, guid: e80a190a16ce64b44a39b0c453d6b299, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TowerAuthoring
+  m_EditorClassIdentifier: Assembly-CSharp::RangeSectorAuthoring
+  MaxRange: 5
+  Angle: 60
+--- !u!114 &-4073462877482838217
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9122402201937015767}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 029d165ce118e574a885f58963398312, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AttackDirectAuthoring
   TowerName: "\uBC1C\uB9AC\uC2A4\uD0C0"
   Damage: 1
   AttackSpeed: 1
-  RangeType: 1
-  AttackType: 1
+  Rotationable: 1
   IsAoe: 0
   AttackArea: 2
-  Rotationable: 1
-  MaxRange: 5
-  MinRange: 0
-  RangeAngle: 60
-  RangeOffset: {x: 0, y: 0, z: 0}
-  BulletSpeed: 5
-  BulletHeight: 0
-  BulletPrefab: {fileID: 6472734832373188454, guid: 9f2b0384bb1f3414d853fece52db3b06, type: 3}
+  BulletSpeed: 2
+  MuzzleVFXPrefab: {fileID: 6472734832373188454, guid: 9f2b0384bb1f3414d853fece52db3b06, type: 3}
   ExplosionVFX: {fileID: 0}

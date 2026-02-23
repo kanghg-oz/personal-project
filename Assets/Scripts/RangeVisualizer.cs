@@ -31,7 +31,7 @@ public class RangeVisualizer : MonoBehaviour
     }
 
     // 타워를 선택했을 때 호출
-    public void ShowRange(TowerData towerData, float3 towerPosition, quaternion towerRotation)
+    public void ShowRange(float3 towerPosition, quaternion towerRotation, float maxRange, float minRange, float rangeAngle, float3 rangeOffset, TowerRangeType rangeType)
     {
         if (mainRangeQuad == null || offsetRangeQuad == null) return;
 
@@ -40,18 +40,17 @@ public class RangeVisualizer : MonoBehaviour
         mainRangeQuad.position = mainPos;
         mainRangeQuad.rotation = towerRotation * Quaternion.Euler(90f, 0f, 0f); // 바닥에 눕히기
         
-        float maxDiameter = towerData.MaxRange * 2f;
+        float maxDiameter = maxRange * 2f;
         mainRangeQuad.localScale = new Vector3(maxDiameter, maxDiameter, 1f);
 
         // 셰이더 파라미터 설정
-        // _Angle은 라디안으로 취급되며 좌우로 벌어지므로, degree를 라디안으로 변환 후 2로 나눔
-        float angleRad = math.radians(towerData.RangeAngle) / 2f;
+        float angleRad = math.radians(rangeAngle) / 2f;
         mainMat.SetFloat("_Angle", angleRad);
         
-        float minRatio = towerData.MaxRange > 0 ? (towerData.MinRange / towerData.MaxRange) : 0f;
+        float minRatio = maxRange > 0 ? (minRange / maxRange) : 0f;
         
         // OffsetCircle일 경우 메인 Quad는 얇은 하얀색 경계선으로 표시
-        if (towerData.RangeType == TowerRangeType.OffsetCircle)
+        if (rangeType == TowerRangeType.OffsetCircle)
         {
             mainMat.SetFloat("_MinRadiusRatio", 0.95f);
             mainMat.SetColor("_Color", new Color(1f, 1f, 1f, 0.3f)); // 반투명한 하얀색
@@ -59,30 +58,26 @@ public class RangeVisualizer : MonoBehaviour
         else
         {
             mainMat.SetFloat("_MinRadiusRatio", minRatio);
-            // 기본 색상으로 복구 (필요하다면 원래 색상을 저장해두고 복구해야 함)
-            // 여기서는 임시로 파란색 계열로 설정 (원래 프리팹의 색상에 맞게 수정 필요)
             mainMat.SetColor("_Color", new Color(0f, 0.5f, 1f, 0.3f)); 
         }
 
         mainRangeQuad.gameObject.SetActive(true);
 
         // 2. Offset Quad 설정 (OffsetCircle 타입일 때만 활성화)
-        if (towerData.RangeType == TowerRangeType.OffsetCircle)
+        if (rangeType == TowerRangeType.OffsetCircle)
         {
-            // 타워 회전을 고려하여 오프셋 위치 계산
-            float3 offsetPos = towerPosition + math.rotate(towerRotation, towerData.RangeOffset);
+            float3 worldOffset = math.rotate(towerRotation, rangeOffset);
+            float3 offsetPos = towerPosition + new float3(worldOffset.x, 0, worldOffset.z);
             offsetPos.y = towerPosition.y + 0.01f;
             offsetRangeQuad.position = offsetPos;
             offsetRangeQuad.rotation = towerRotation * Quaternion.Euler(90f, 0f, 0f);
 
-            // OffsetCircle에서 실제 타격 반경을 MinRange로 사용한다고 가정
-            float offsetDiameter = towerData.MinRange * 2f; 
+            // OffsetCircle에서 실제 타격 반경을 minRange로 사용 (authoring에서 radius로 저장했었음)
+            float offsetDiameter = minRange * 2f; 
             offsetRangeQuad.localScale = new Vector3(offsetDiameter, offsetDiameter, 1f);
 
-            // Offset Quad는 항상 기본 원형으로 그림 (Angle은 360도에 해당하는 라디안 값, MinRadiusRatio 0)
             offsetMat.SetFloat("_Angle", math.PI); 
             offsetMat.SetFloat("_MinRadiusRatio", 0f); 
-            // 실제 타격 범위는 원래 색상(예: 파란색)으로 표시
             offsetMat.SetColor("_Color", new Color(0f, 0.5f, 1f, 0.3f));
             
             offsetRangeQuad.gameObject.SetActive(true);

@@ -11,7 +11,8 @@ GameObject:
   - component: {fileID: 5133476887639967348}
   - component: {fileID: 3182865180919307674}
   - component: {fileID: 1514188002849577925}
-  - component: {fileID: 7719450941915466336}
+  - component: {fileID: -8101552461096573488}
+  - component: {fileID: -3661133804448749706}
   m_Layer: 0
   m_Name: catapult
   m_TagString: Untagged
@@ -91,7 +92,7 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &7719450941915466336
+--- !u!114 &-8101552461096573488
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -100,22 +101,29 @@ MonoBehaviour:
   m_GameObject: {fileID: 3160744318168390592}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 31a89c705c336ec42b932b4e97f9be7d, type: 3}
+  m_Script: {fileID: 11500000, guid: aa2728872aad14f41aca11b748a861e2, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TowerAuthoring
+  m_EditorClassIdentifier: Assembly-CSharp::RangeDefaultAuthoring
+  MaxRange: 5
+--- !u!114 &-3661133804448749706
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3160744318168390592}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 48e63014735346e4299177220dd7871e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AttackProjectileAuthoring
   TowerName: "\uCE90\uD130\uD384\uD2B8"
   Damage: 1
   AttackSpeed: 1
-  RangeType: 0
-  AttackType: 0
+  Rotationable: 1
   IsAoe: 0
   AttackArea: 2
-  Rotationable: 1
-  MaxRange: 3
-  MinRange: 0
-  RangeAngle: 360
-  RangeOffset: {x: 1, y: 0, z: 0}
   BulletSpeed: 2
-  BulletHeight: 1.5
-  BulletPrefab: {fileID: 1772965098438808138, guid: b3a90a5a1ee2b6a49b2125f1320c95e1, type: 3}
+  BulletHeight: 2
+  BulletPrefab: {fileID: 3990801783980386141, guid: 78771a481b682c746accbd27f74fddff, type: 3}
   ExplosionVFX: {fileID: 0}

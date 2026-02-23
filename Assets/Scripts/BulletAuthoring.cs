@@ -20,9 +20,9 @@ public class BulletAuthoring : MonoBehaviour
                 Damage = 0,
                 TargetEntity = Entity.Null,
                 TowerEntity = Entity.Null,
-                AttackType = TowerAttackType.Default,
+                AttackType = TowerAttackType.Projectile,
                 IsAoe = false,
-                AttackArea = 0f
+                AoERadius = 0f
             });
 
             AddComponent(entity, new BulletAnimation
@@ -47,7 +47,7 @@ public struct BulletData : IComponentData
     public Entity TowerEntity; // 타워 엔티티 저장 (VFX 풀 접근용)
     public TowerAttackType AttackType;
     public bool IsAoe;
-    public float AttackArea;
+    public float AoERadius;
 }
 
 [MaterialProperty("_TimeSpeedLengthHeight")]
