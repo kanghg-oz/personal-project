@@ -46,6 +46,12 @@ public class PlayerInputManager : MonoBehaviour
         get => _hasSelection;
         set
         {
+            // false로 바꿀 때, IsEditMode가 true가 된 지 0.1초가 지나지 않았다면 무시
+            if (!value && Time.time < _editModeStartTime + 0.1f)
+            {
+                return;
+            }
+
             // 만약 선택이 해제되는 상황이라면 (기존에 선택이 있었는데 false가 됨)
             if (_hasSelection && !value)
             {
@@ -74,6 +80,62 @@ public class PlayerInputManager : MonoBehaviour
     [HideInInspector] public int JS_Obj { get; set; }
     [HideInInspector] public float JS_MouseX { get; set; }
     [HideInInspector] public float JS_MouseY { get; set; }
+    [HideInInspector] public int JS_TowerRangeType { get; set; } = -1;
+    
+    private bool _isEditMode = false;
+    private float _editModeStartTime = -1f;
+    [HideInInspector] public bool IsEditMode 
+    { 
+        get => _isEditMode; 
+        set
+        {
+            // false로 바꿀 때, true가 된 지 0.1초가 지나지 않았다면 무시
+            if (!value && Time.time < _editModeStartTime + 0.1f)
+            {
+                return;
+            }
+
+            if (value)
+            {
+                _editModeStartTime = Time.time; // true가 된 시간 기록
+                HasSelection = true; // HasSelection도 같이 true로 변경
+                RestoreTowerSelectionAndRange(); // 빠른 클릭으로 인해 해제되었을 수 있는 타워 선택 및 사거리 표시 복구
+            }
+
+            _isEditMode = value;
+        }
+    }
+
+    private void RestoreTowerSelectionAndRange()
+    {
+        if (JS_Obj >= 100 && _rangeVisualizer != null)
+        {
+            var world = World.DefaultGameObjectInjectionWorld;
+            if (world == null) return;
+            var em = world.EntityManager;
+            var configQuery = em.CreateEntityQuery(typeof(MapConfig));
+            if (!configQuery.IsEmptyIgnoreFilter)
+            {
+                Entity configEntity = configQuery.GetSingletonEntity();
+                var objEntities = em.GetBuffer<ObjectEntityElement>(configEntity);
+                int dataIndex = JS_Z * _mapWidth + JS_X;
+                if (dataIndex >= 0 && dataIndex < objEntities.Length)
+                {
+                    Entity towerEntity = objEntities[dataIndex].Value;
+
+                    if (towerEntity != Entity.Null && em.HasComponent<TowerData>(towerEntity) && em.HasComponent<LocalTransform>(towerEntity))
+                    {
+                        _selectedTowerEntity = towerEntity;
+                        var towerData = em.GetComponentData<TowerData>(towerEntity);
+                        var towerTransform = em.GetComponentData<LocalTransform>(towerEntity);
+                        JS_TowerRangeType = (int)towerData.RangeType;
+                        _rangeVisualizer.ShowRange(towerData, towerTransform.Position, towerTransform.Rotation);
+                    }
+                }
+            }
+        }
+    }
+    
     [HideInInspector] public bool IsBuildRequestPending = false;
     [HideInInspector] public int PendingTowerIndex = -1;
     // UI 페이즈 관리용 (0: 건설 모드, 1: 웨이브/스폰 모드)
@@ -92,6 +154,7 @@ public class PlayerInputManager : MonoBehaviour
     [Header("Marker")]
     public GameObject selectionMarker;
     private GameObject _markerInstance;
+    private RangeVisualizer _rangeVisualizer;
 
     [Header("Visualization")]
     public GameObject pathLinePrefab; // LineRenderer가 달린 프리팹 할당
@@ -107,6 +170,7 @@ public class PlayerInputManager : MonoBehaviour
     private bool _hasSelection;
     private int _originalObjType; // 마커가 올라간 타일의 원래 상태 저장용
     private int2 _lastSelectedPos = new int2(-1, -1);
+    private Entity _selectedTowerEntity = Entity.Null;
 
     private TileInfo[,] _realMapData; // 실제 게임 데이터 (타워 건설 시에만 변경)
     private TileInfo[,] _simMapData;
@@ -145,6 +209,8 @@ public class PlayerInputManager : MonoBehaviour
 
         _markerInstance = Instantiate(selectionMarker);
         _markerInstance.SetActive(false);
+
+        _rangeVisualizer = GetComponent<RangeVisualizer>();
 
         LoadSpawnPointsForVisual(Resources.Load<TextAsset>("spawn_pos").text);
         RefreshTowerInfos();
@@ -200,6 +266,72 @@ public class PlayerInputManager : MonoBehaviour
         if (JS_Obj <= 1) return; // 빈칸(0)이나 목표(1)는 제거 불가
         IsRemoveRequestPending = true;
         HasSelection = false; // 메뉴 닫기
+    }
+
+    public void HandleEditDrag(Vector2 delta)
+    {
+        if (_selectedTowerEntity == Entity.Null) return;
+
+        var world = World.DefaultGameObjectInjectionWorld;
+        var em = world.EntityManager;
+        if (!em.Exists(_selectedTowerEntity) || !em.HasComponent<TowerData>(_selectedTowerEntity)) return;
+
+        var towerData = em.GetComponentData<TowerData>(_selectedTowerEntity);
+        var transform = em.GetComponentData<LocalTransform>(_selectedTowerEntity);
+
+        Vector3 camRight = Camera.main.transform.right;
+        Vector3 camForward = Camera.main.transform.forward;
+        camForward.y = 0;
+        camForward.Normalize();
+
+        Vector3 dragDir = camRight * delta.x + camForward * delta.y;
+
+        if (towerData.RangeType == TowerRangeType.Sector)
+        {
+            if (dragDir.sqrMagnitude > 0.1f)
+            {
+                // 목표 회전값 계산
+                quaternion targetRot = quaternion.LookRotationSafe(dragDir, math.up());
+                
+                // 현재 회전값과 목표 회전값 사이의 각도 차이 계산
+                float angleDiff = math.degrees(math.acos(math.dot(transform.Rotation.value, targetRot.value)) * 2f);
+                
+                // 최대 회전 각도를 10도로 제한
+                float maxAngle = 10f;
+                if (angleDiff > maxAngle)
+                {
+                    // Slerp를 사용하여 최대 각도만큼만 회전
+                    float t = maxAngle / angleDiff;
+                    transform.Rotation = math.slerp(transform.Rotation, targetRot, t);
+                }
+                else
+                {
+                    transform.Rotation = targetRot;
+                }
+                
+                em.SetComponentData(_selectedTowerEntity, transform);
+                
+                if (_rangeVisualizer != null) _rangeVisualizer.ShowRange(towerData, transform.Position, transform.Rotation);
+            }
+        }
+        else if (towerData.RangeType == TowerRangeType.OffsetCircle)
+        {
+            // OffsetCircle의 경우 드래그 방향으로 오프셋을 이동시킴
+            // delta는 화면 픽셀 단위이므로 적절한 스케일링 필요
+            float moveSpeed = 0.05f; 
+            float3 newOffset = towerData.RangeOffset + (float3)(dragDir * moveSpeed);
+            
+            // 최대 사거리(MaxRange)를 벗어나지 않도록 제한
+            if (math.length(newOffset) > towerData.MaxRange)
+            {
+                newOffset = math.normalize(newOffset) * towerData.MaxRange;
+            }
+            
+            towerData.RangeOffset = newOffset;
+            em.SetComponentData(_selectedTowerEntity, towerData);
+            
+            if (_rangeVisualizer != null) _rangeVisualizer.ShowRange(towerData, transform.Position, transform.Rotation);
+        }
     }
 
     // 1. CSV 로드 시 스폰 지점 저장 (MapSpawnSystem 등에서 호출하거나 직접 읽음)
@@ -366,7 +498,7 @@ public class PlayerInputManager : MonoBehaviour
         }
         else
         {
-            // [Case 2] 길이 뚫림 -> 기존 라인 유지(흰색) & 프리뷰 라인 반투명 표시
+            // [Case 2] 길이 뚫림 -> 기존 라인 유지(흔색) & 프리뷰 라인 반투명 표시
 
             // 1. 기존 라인은 실제 맵 데이터(_realMapData) 기준 원래 색으로 복구
             UpdatePathVisualizationColor(_pathLines, _realMapData, false);
@@ -415,7 +547,7 @@ public class PlayerInputManager : MonoBehaviour
             }
             else
             {
-                // 뚫린 경로: 프리뷰 라인이면 반투명 초록, 일반 라인이면 흰색
+                // 뚫린 경로: 프리뷰 라인이면 반투명 초록, 일반 라인은 흰색
                 targetColor = (lines == _previewLines) ? previewPathColor : normalPathColor;
             }
 
@@ -456,8 +588,13 @@ public class PlayerInputManager : MonoBehaviour
             _lastSelectedPos = new int2(-1, -1);
             IsPathBlocked = false;
         }
+        if (_rangeVisualizer != null)
+        {
+            _rangeVisualizer.HideRange();
+        }
+        _selectedTowerEntity = Entity.Null;
+        IsEditMode = false;
     }
-
 
     public void OnJSMenuAction(string actionName)
     {
@@ -565,19 +702,23 @@ public class PlayerInputManager : MonoBehaviour
 
     private void OnClickPerformed(InputAction.CallbackContext ctx)
     {
-        if (HasSelection)
-        {
-            HasSelection = false;
-            return;
-        }
-        Vector2 screenPos = positionAction.action.ReadValue<Vector2>();
+        // 최신 마우스/터치 위치를 직접 가져와서 딜레이로 인한 픽킹 오류 방지
+        Vector2 screenPos = Pointer.current != null ? Pointer.current.position.ReadValue() : positionAction.action.ReadValue<Vector2>();
         IPanel panel = _rootElement.panel;
         Vector2 panelPos = RuntimePanelUtils.ScreenToPanel(panel, screenPos);
         VisualElement pickedElement = panel.Pick(panelPos);
 
+        // 1. UI 클릭인지 가장 먼저 확인하여 무시
         if (pickedElement != null && pickedElement != _rootElement)
         {
             return; // UI 클릭이므로 타일 픽킹 안 함
+        }
+
+        // 2. UI 클릭이 아닐 때만 선택 해제 로직 실행 (빈 땅 클릭 시 이동모드 종료 및 UI 닫기)
+        if (HasSelection)
+        {
+            HasSelection = false;
+            return;
         }
 
         DoPick(screenPos, panelPos);
@@ -664,7 +805,37 @@ public class PlayerInputManager : MonoBehaviour
                 JS_Z = z;
                 JS_Floor = info.floorType;
                 JS_Obj = info.objType;
+                JS_TowerRangeType = -1;
+                IsEditMode = false;
+                _selectedTowerEntity = Entity.Null;
                 HasSelection = true;
+
+                if (info.objType >= 100 && _rangeVisualizer != null)
+                {
+                    var world = World.DefaultGameObjectInjectionWorld;
+                    var em = world.EntityManager;
+                    var configQuery = em.CreateEntityQuery(typeof(MapConfig));
+                    if (!configQuery.IsEmptyIgnoreFilter)
+                    {
+                        Entity configEntity = configQuery.GetSingletonEntity();
+                        var objEntities = em.GetBuffer<ObjectEntityElement>(configEntity);
+                        int dataIndex = z * _mapWidth + x;
+                        Entity towerEntity = objEntities[dataIndex].Value;
+
+                        if (towerEntity != Entity.Null && em.HasComponent<TowerData>(towerEntity) && em.HasComponent<LocalTransform>(towerEntity))
+                        {
+                            _selectedTowerEntity = towerEntity;
+                            var towerData = em.GetComponentData<TowerData>(towerEntity);
+                            var towerTransform = em.GetComponentData<LocalTransform>(towerEntity);
+                            JS_TowerRangeType = (int)towerData.RangeType;
+                            _rangeVisualizer.ShowRange(towerData, towerTransform.Position, towerTransform.Rotation);
+                        }
+                    }
+                }
+                else if (_rangeVisualizer != null)
+                {
+                    _rangeVisualizer.HideRange();
+                }
             }
         }
         else
@@ -1034,7 +1205,7 @@ public class PlayerInputManager : MonoBehaviour
     {
         if (JS_Obj <= 1) return;
 
-        var world = World.DefaultGameObjectInjectionWorld;
+        var world = Unity.Entities.World.DefaultGameObjectInjectionWorld;
         var em = world.EntityManager;
         var configQuery = em.CreateEntityQuery(typeof(MapConfig));
         Entity configEntity = configQuery.GetSingletonEntity();

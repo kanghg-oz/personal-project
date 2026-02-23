@@ -1,10 +1,10 @@
-using Unity.Entities;
+ï»¿using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
 public class MonsterAuthoring : MonoBehaviour
 {
-    public float HP = 5f;
+    public int HP = 5;
     public float Speed = 1f;
 
     public class MonsterBaker : Baker<MonsterAuthoring>
@@ -28,11 +28,11 @@ public class MonsterAuthoring : MonoBehaviour
 
 public struct MonsterData : IComponentData
 {
-    public float HP;
-    public float MaxHP;
+    public int HP;
+    public int MaxHP;
     public float Speed;
 
-    // ÀÌµ¿ °ü·Ã »óÅÂ ÇÊµå ÅëÇÕ
+    // ì´ë™ ê´€ë ¨ ìƒíƒœ í•„ë“œ í†µí•©
     public float3 CurrentTargetPos;
     public float3 Offset;
     public bool HasTarget;

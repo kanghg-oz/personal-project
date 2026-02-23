@@ -129,8 +129,8 @@ public partial struct MonsterSpawnSystem : ISystem
                 // MonsterData 컴포넌트는 이미 Authoring에 의해 추가되어 있으므로 데이터를 갱신함
                 ecb.SetComponent(monster, new MonsterData
                 {
-                    HP = 5f, // 기본값 (Authoring 값이 우선되나 여기서 보정 가능)
-                    MaxHP = 5f,
+                    HP = 5, // 기본값 (Authoring 값이 우선되나 여기서 보정 가능)
+                    MaxHP = 5,
                     Speed = 1.0f,
                     CurrentTargetPos = spawnPos,
                     HasTarget = false,

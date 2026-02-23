@@ -106,9 +106,9 @@ MonoBehaviour:
   TowerName: "\uCE90\uB17C"
   Damage: 10
   AttackSpeed: 1
-  RangeType: 0
-  MaxRange: 5
-  MinRange: 0
+  RangeType: 2
+  MaxRange: 3
+  MinRange: 1
   RangeAngle: 360
   RangeOffset: {x: 0, y: 0, z: 0}
   BulletPrefab: {fileID: 1772965098438808138, guid: b3a90a5a1ee2b6a49b2125f1320c95e1, type: 3}

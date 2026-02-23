@@ -66,7 +66,17 @@ public class CameraController : MonoBehaviour
 
         // 3. 이동
         Vector2 panVal = panAction.action.ReadValue<Vector2>();
-        DoPan(panVal);
+        
+        if (PlayerInputManager.Instance != null && PlayerInputManager.Instance.IsEditMode)
+        {
+            // 편집 모드일 때는 카메라 이동을 하지 않고 타워 조작만 수행
+            PlayerInputManager.Instance.HandleEditDrag(panVal);
+        }
+        else
+        {
+            // 편집 모드가 아닐 때만 카메라 이동
+            DoPan(panVal);
+        }
     }
 
     void DoZoom(float delta)
@@ -170,29 +180,13 @@ public class CameraController : MonoBehaviour
         panAction.action.Enable();
         rotateAction.action.Enable();
         zoomAction.action.Enable();
-
-        panAction.action.started += ctx => CloseSelectionUI();
-        rotateAction.action.started += ctx => CloseSelectionUI();
-        zoomAction.action.started += ctx => CloseSelectionUI();
     }
 
     void OnDisable()
     {
-        panAction.action.started -= ctx => CloseSelectionUI();
-        rotateAction.action.started -= ctx => CloseSelectionUI();
-        zoomAction.action.started -= ctx => CloseSelectionUI();
-
         panAction.action.Disable();
         rotateAction.action.Disable();
         zoomAction.action.Disable();
-    }
-
-    private void CloseSelectionUI()
-    {
-        if (PlayerInputManager.Instance != null)
-        {
-            PlayerInputManager.Instance.HasSelection = false;
-        }
     }
 
 }
