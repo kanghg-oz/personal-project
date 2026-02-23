@@ -326,24 +326,29 @@ public class PlayerInputManager : MonoBehaviour
         }
         else if (towerData.RangeType == TowerRangeType.OffsetCircle)
         {
-            // OffsetCircle의 경우 드래그 방향으로 오프셋을 이동시킴
-            // delta는 화면 픽셀 단위이므로 적절한 스케일링 필요
+            // 현재 월드 공간에서의 오프셋 위치 계산 (로컬 오프셋을 논리적 회전으로 변환)
+            float3 currentWorldOffset = math.rotate(towerData.LogicalRotation, towerData.RangeOffset);
+            
+            // 드래그 방향을 더해 새로운 월드 오프셋 계산
             float moveSpeed = 0.05f; 
-            float3 newOffset = towerData.RangeOffset + (float3)(dragDir * moveSpeed);
+            float3 newWorldOffset = currentWorldOffset + (float3)(dragDir * moveSpeed);
             
             // 최대 사거리(MaxRange)를 벗어나지 않도록 제한
-            if (math.length(newOffset) > towerData.MaxRange)
+            float dist = math.length(newWorldOffset);
+            if (dist > towerData.MaxRange)
             {
-                newOffset = math.normalize(newOffset) * towerData.MaxRange;
+                newWorldOffset = math.normalize(newWorldOffset) * towerData.MaxRange;
+                dist = towerData.MaxRange;
             }
             
-            towerData.RangeOffset = newOffset;
-
-            // 오프셋 방향을 바라보도록 논리적 회전 업데이트
-            if (math.lengthsq(newOffset) > 0.001f)
+            if (dist > 0.001f)
             {
-                quaternion targetRot = quaternion.LookRotationSafe(math.normalize(newOffset), math.up());
+                // 오프셋 방향을 바라보도록 논리적 회전 업데이트
+                quaternion targetRot = quaternion.LookRotationSafe(math.normalize(newWorldOffset), math.up());
                 towerData.LogicalRotation = targetRot;
+                
+                // RangeOffset은 로컬 벡터이므로, 타워가 오프셋을 바라보게 되면 오프셋은 항상 전방(Z축)에 위치함
+                towerData.RangeOffset = new float3(0, 0, dist);
 
                 // Rotationable이 true일 때만 시각적 모델 회전
                 if (towerData.Rotationable)
@@ -351,6 +356,10 @@ public class PlayerInputManager : MonoBehaviour
                     transform.Rotation = targetRot;
                     em.SetComponentData(_selectedTowerEntity, transform);
                 }
+            }
+            else
+            {
+                towerData.RangeOffset = float3.zero;
             }
 
             em.SetComponentData(_selectedTowerEntity, towerData);
@@ -959,6 +968,7 @@ public class PlayerInputManager : MonoBehaviour
         //    // 제거 전 스폰 지점 경로 샘플링 (첫 번째 스폰 지점 기준)
         //    PrintDebugPath("제거 전(Before)", targetMap);
         //}
+
 
         _invalidQueue.Clear();
         _repairQueue.Clear();
