@@ -62,6 +62,12 @@ public struct TowerVFXPool : IComponentData
     public float Duration;
     public int PoolSize;
     public int CurrentIndex;
+    public float VFXScale;
+}
+
+public struct VFXScaleProperty : IComponentData
+{
+    public float Value;
 }
 
 // Range Components
@@ -78,6 +84,22 @@ public struct TowerRangeOffset : IComponentData
 // Attack Logic Components
 public struct SingleHitAttack : IComponentData { }
 public struct AoEHitAttack : IComponentData { public float AoERadius; }
+
+public struct SingleDamageRequest : IComponentData
+{
+    public int Damage;
+    public Entity TargetEntity;
+    public float3 ImpactPosition;
+    public Entity TowerEntity;
+}
+
+public struct AoEDamageRequest : IComponentData
+{
+    public int Damage;
+    public float3 TargetPosition;
+    public float Radius;
+    public Entity TowerEntity;
+}
 
 // Buffers
 [InternalBufferCapacity(10)]

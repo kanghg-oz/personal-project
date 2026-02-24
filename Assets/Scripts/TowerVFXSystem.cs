@@ -7,6 +7,22 @@ public partial class TowerVFXSystem : SystemBase
 {
     protected override void OnUpdate()
     {
+        // 최적화: 풀링 시점에 추가한 VFXScaleProperty를 딱 한 번만 _Scale 프로퍼티에 적용
+        var ecb = new EntityCommandBuffer(Unity.Collections.Allocator.Temp);
+        
+        foreach (var (scaleProp, entity) in SystemAPI.Query<RefRO<VFXScaleProperty>>().WithEntityAccess())
+        {
+            if (EntityManager.HasComponent<VisualEffect>(entity))
+            {
+                var vfx = EntityManager.GetComponentObject<VisualEffect>(entity);
+                vfx.SetFloat("_Scale", scaleProp.ValueRO.Value);
+                ecb.RemoveComponent<VFXScaleProperty>(entity);
+            }
+        }
+        
+        ecb.Playback(EntityManager);
+        ecb.Dispose();
+
         foreach (var (requests, muzzleRequests) in SystemAPI.Query<
             DynamicBuffer<VFXPlayRequest>,
             DynamicBuffer<MuzzleVFXPlayRequest>>())

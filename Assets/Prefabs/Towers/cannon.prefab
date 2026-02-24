@@ -124,7 +124,7 @@ MonoBehaviour:
   AttackSpeed: 1
   Rotationable: 1
   IsAoe: 1
-  AoERadius: 2
+  AoERadius: 1
   BulletSpeed: 2
   BulletHeight: 2
   BulletPrefab: {fileID: 2215323938189227748, guid: 205bdb6ed29f3274880b06757c5d3aeb, type: 3}

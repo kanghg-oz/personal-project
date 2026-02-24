@@ -11,8 +11,6 @@ GameObject:
   - component: {fileID: 5205008090625937528}
   - component: {fileID: 876842998099456884}
   - component: {fileID: 3933746785741305766}
-  - component: {fileID: 5615966690897165097}
-  - component: {fileID: 7785940113092391335}
   - component: {fileID: -3154120270234829363}
   m_Layer: 0
   m_Name: VFX_Boom
@@ -57,6 +55,9 @@ VisualEffect:
       - m_Value: 1
         m_Name: ScaleGetter
         m_Overridden: 1
+      - m_Value: 1
+        m_Name: _Scale
+        m_Overridden: 1
     m_Vector2f:
       m_Array: []
     m_Vector3f:
@@ -67,7 +68,7 @@ VisualEffect:
       - m_Value: {x: 3, y: 0.2, z: 3}
         m_Name: TransformGetter_position
         m_Overridden: 1
-      - m_Value: {x: 1, y: 1, z: 1}
+      - m_Value: {x: 1.9, y: 1.9, z: 1.9}
         m_Name: TransformGetter_scale
         m_Overridden: 1
     m_Vector4f:
@@ -133,38 +134,6 @@ VFXRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
---- !u!114 &5615966690897165097
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3087789386843599351}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cdafc37f32b176349b1684c4455b98e9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.VisualEffectGraph.Runtime::UnityEngine.VFX.Utility.VFXPropertyBinder
-  m_ExecuteInEditor: 1
-  m_Bindings:
-  - {fileID: 7785940113092391335}
-  m_VisualEffect: {fileID: 876842998099456884}
---- !u!114 &7785940113092391335
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3087789386843599351}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7fdfea1f838247c40921a07afedde962, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.VisualEffectGraph.Runtime::UnityEngine.VFX.Utility.VFXTransformBinder
-  Space: 1
-  m_Property:
-    m_Name: TransformGetter
-  Target: {fileID: 5205008090625937528}
 --- !u!114 &-3154120270234829363
 MonoBehaviour:
   m_ObjectHideFlags: 0

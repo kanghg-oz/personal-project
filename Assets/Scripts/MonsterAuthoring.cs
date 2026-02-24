@@ -1,5 +1,6 @@
 ﻿using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Rendering;
 using UnityEngine;
 
 public class MonsterAuthoring : MonoBehaviour
@@ -26,6 +27,14 @@ public class MonsterAuthoring : MonoBehaviour
                 HasTarget = false,
                 Offset = float3.zero
             });
+
+            AddComponent(entity, new MonsterMaterialProperties
+            {
+                LastHitTime = -100f,
+                HPRatio = 1.0f,
+                Unused1 = 0f,
+                Unused2 = 0f
+            });
         }
     }
 }
@@ -42,4 +51,13 @@ public struct MonsterData : IComponentData
     public float3 CurrentTargetPos;
     public float3 Offset;
     public bool HasTarget;
+}
+
+[MaterialProperty("_HitTimeRatio")]
+public struct MonsterMaterialProperties : IComponentData
+{
+    public float LastHitTime; // x: 피격 시각
+    public float HPRatio;     // y: 체력 비율
+    public float Unused1;     // z: 미사용
+    public float Unused2;     // w: 미사용
 }

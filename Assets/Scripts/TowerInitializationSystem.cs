@@ -45,19 +45,21 @@ public partial struct TowerInitializationSystem : ISystem
 
             if (vfxBuffer.Length == 0 && vfxPool.ValueRO.ExplosionPrefab != Entity.Null)
             {
-                // 스케일 설정
+                // 스케일 설정 및 저장
                 float scale = 1.0f;
                 if (SystemAPI.HasComponent<AoEHitAttack>(entity))
                 {
                     scale = SystemAPI.GetComponent<AoEHitAttack>(entity).AoERadius * 2.0f;
                 }
+                vfxPool.ValueRW.VFXScale = scale;
                 
                 for (int i = 0; i < vfxPool.ValueRO.PoolSize; i++)
                 {
                     Entity vfx = ecb.Instantiate(vfxPool.ValueRO.ExplosionPrefab);
                     
-                    // 초기 위치는 타워 위치, 스케일은 한 번만 설정
-                    ecb.SetComponent(vfx, LocalTransform.FromPosition(transform.ValueRO.Position).WithScale(scale));
+                    // 초기 위치는 타워 위치, 스케일은 1로 고정하며 VFX 프로퍼티 설정을 위한 데이터 추가
+                    ecb.SetComponent(vfx, LocalTransform.FromPosition(transform.ValueRO.Position));
+                    ecb.AddComponent(vfx, new VFXScaleProperty { Value = scale });
                     
                     ecb.AppendToBuffer(entity, new TowerVFXElement { Value = vfx });
                 }
