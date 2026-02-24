@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 4411679979240197193}
   - component: {fileID: 6908828193472786307}
   - component: {fileID: -4073462877482838217}
+  - component: {fileID: -6819591728620528953}
   m_Layer: 0
   m_Name: balista
   m_TagString: Untagged
@@ -123,7 +124,30 @@ MonoBehaviour:
   AttackSpeed: 1
   Rotationable: 1
   IsAoe: 0
-  AttackArea: 2
+  AoERadius: 2
   BulletSpeed: 2
   MuzzleVFXPrefab: {fileID: 6472734832373188454, guid: 9f2b0384bb1f3414d853fece52db3b06, type: 3}
   ExplosionVFX: {fileID: 0}
+--- !u!114 &-6819591728620528953
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9122402201937015767}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3364d0a58d6c234ab162e8a0061d2d6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TowerCostAuthoring
+  BuildCost: 5
+  DamageUpgrades:
+  - Cost: 2
+    Value: 2
+  - Cost: 1
+    Value: 1
+  RangeUpgrades:
+  - Cost: 1
+    Value: 1
+  - Cost: 2
+    Value: 0.5

@@ -107,6 +107,10 @@ public partial struct MonsterSpawnSystem : ISystem
         if (wave.monsterIdx >= monsterPrefabs.Length) return;
 
         Entity prefab = monsterPrefabs[wave.monsterIdx].Value;
+        
+        // 프리팹에서 Authoring 정보를 가져옴
+        var prefabData = state.EntityManager.GetComponentData<MonsterData>(prefab);
+        
         int totalTiles = config.MapWidth * config.MapHeight;
         var random = new Unity.Mathematics.Random((uint)(_spawnCount + 1 + _currentWaveIdx));
 
@@ -126,16 +130,13 @@ public partial struct MonsterSpawnSystem : ISystem
                 int monsterId = totalTiles + (++_spawnCount);
                 ecb.AddComponent(monster, new PickingIdColor { Value = IndexToColor(monsterId) });
                 
-                // MonsterData 컴포넌트는 이미 Authoring에 의해 추가되어 있으므로 데이터를 갱신함
-                ecb.SetComponent(monster, new MonsterData
-                {
-                    HP = 5, // 기본값 (Authoring 값이 우선되나 여기서 보정 가능)
-                    MaxHP = 5,
-                    Speed = 1.0f,
-                    CurrentTargetPos = spawnPos,
-                    HasTarget = false,
-                    Offset = offset
-                });
+                // 프리팹 데이터 기반으로 인스턴스 정보 초기화
+                var instanceData = prefabData;
+                instanceData.CurrentTargetPos = spawnPos;
+                instanceData.HasTarget = false;
+                instanceData.Offset = offset;
+                
+                ecb.SetComponent(monster, instanceData);
             }
         }
     }

@@ -6,7 +6,6 @@ using Unity.Burst;
 [BurstCompile]
 public partial struct MonsterMoveSystem : ISystem
 {
-    [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<MapConfig>();
@@ -65,6 +64,12 @@ public partial struct MonsterMoveSystem : ISystem
                 }
                 else if (distVal == 0) // Goal 도착
                 {
+                    if (SystemAPI.HasSingleton<PlayerStats>())
+                    {
+                        var stats = SystemAPI.GetSingleton<PlayerStats>();
+                        stats.HP -= monster.ValueRO.DamageToPlayer;
+                        SystemAPI.SetSingleton(stats);
+                    }
                     ecb.DestroyEntity(entity);
                     continue;
                 }

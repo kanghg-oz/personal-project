@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 7157267011624964421}
   - component: {fileID: -2379755810706884494}
   - component: {fileID: -5283677283368735620}
+  - component: {fileID: 7432376627660275381}
   m_Layer: 0
   m_Name: cannon
   m_TagString: Untagged
@@ -123,8 +124,31 @@ MonoBehaviour:
   AttackSpeed: 1
   Rotationable: 1
   IsAoe: 1
-  AttackRadius: 4
+  AoERadius: 2
   BulletSpeed: 2
   BulletHeight: 2
   BulletPrefab: {fileID: 2215323938189227748, guid: 205bdb6ed29f3274880b06757c5d3aeb, type: 3}
   ExplosionVFX: {fileID: 3087789386843599351, guid: dc21c2fceaff11c4bbace386c61c8c45, type: 3}
+--- !u!114 &7432376627660275381
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3489361837142362153}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3364d0a58d6c234ab162e8a0061d2d6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TowerCostAuthoring
+  BuildCost: 5
+  DamageUpgrades:
+  - Cost: 2
+    Value: 2
+  - Cost: 1
+    Value: 1
+  RangeUpgrades:
+  - Cost: 1
+    Value: 1
+  - Cost: 2
+    Value: 0.5

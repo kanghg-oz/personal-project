@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 2934454637200286716}
   - component: {fileID: -325519672247318638}
   - component: {fileID: -4673432627452706671}
+  - component: {fileID: 6415990051111272526}
   m_Layer: 0
   m_Name: Crystal
   m_TagString: Untagged
@@ -127,3 +128,26 @@ MonoBehaviour:
   AoERadius: 2
   MuzzleVFXPrefab: {fileID: 7118066044267773357, guid: d8b3d388a1e836841b9f0d96360fc4a3, type: 3}
   ExplosionVFX: {fileID: 7979301937965987283, guid: d104a6f072f438f44956bffe9466642d, type: 3}
+--- !u!114 &6415990051111272526
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6978305883963211710}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3364d0a58d6c234ab162e8a0061d2d6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TowerCostAuthoring
+  BuildCost: 5
+  DamageUpgrades:
+  - Cost: 2
+    Value: 2
+  - Cost: 1
+    Value: 1
+  RangeUpgrades:
+  - Cost: 1
+    Value: 1
+  - Cost: 2
+    Value: 0.5

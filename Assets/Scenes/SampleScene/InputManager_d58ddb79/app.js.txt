@@ -14408,6 +14408,12 @@ function App() {
   const isPathBlocked = useThrottledSync(() => pmInput.IsPathBlocked, 100);
   const towerRangeType = useThrottledSync(() => pmInput.JS_TowerRangeType, 100);
   const isEditMode = useThrottledSync(() => pmInput.IsEditMode, 100);
+  const selDamage = useThrottledSync(() => pmInput.JS_SelectedDamage, 100);
+  const selRange = useThrottledSync(() => pmInput.JS_SelectedRange, 100);
+  const playerGold = useThrottledSync(() => pmInput.JS_PlayerGold, 100);
+  const playerHP = useThrottledSync(() => pmInput.JS_PlayerHP, 100);
+  const selDamageCost = useThrottledSync(() => pmInput.JS_SelectedDamageUpgradeCost, 100);
+  const selRangeCost = useThrottledSync(() => pmInput.JS_SelectedRangeUpgradeCost, 100);
   const towerInfosJson = useThrottledSync(() => pmInput.TowerInfosJson, 500);
   const towerInfos = towerInfosJson ? JSON.parse(towerInfosJson).Items ?? [] : [];
   const handlePhaseChange = () => {
@@ -14415,45 +14421,99 @@ function App() {
     pmInput.SetGamePhase(nextPhase);
     pmInput.HasSelection = false;
   };
-  if (!hasSelection) {
-    return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(View, { style: { position: "absolute", top: 20, left: 20, width: 200 }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Button, { onClick: handlePhaseChange, style: { padding: 20, backgroundColor: gamePhase === 0 ? "#4CAF50" : "#F44336" }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: gamePhase === 0 ? "\uAC74\uC124 \uBAA8\uB4DC" : "\uC804\uD22C \uBAA8\uB4DC" }) }) });
-  }
   return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_jsx_runtime4.Fragment, { children: [
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(View, { style: { position: "absolute", top: 20, left: 20, width: 200 }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Button, { onClick: handlePhaseChange, style: { padding: 20, backgroundColor: gamePhase === 0 ? "#4CAF50" : "#F44336" }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: gamePhase === 0 ? "\uAC74\uC124 \uBAA8\uB4DC" : "\uC804\uD22C \uBAA8\uB4DC" }) }) }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(View, { style: { position: "absolute", top: 20, left: "50%", marginLeft: -150, width: 300, flexDirection: "row", justifyContent: "space-between", backgroundColor: "rgba(0,0,0,0.6)", padding: 10, borderRadius: 10 }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(View, { style: { flexDirection: "row", alignItems: "center" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: "\u{1F4B0}", style: { fontSize: 24, marginRight: 8 } }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: playerGold ? playerGold.toString() : "0", style: { color: "#FFD700", fontSize: 24 } })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(View, { style: { flexDirection: "row", alignItems: "center" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: "\u2764\uFE0F", style: { fontSize: 24, marginRight: 8 } }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: playerHP ? playerHP.toString() : "0", style: { color: "#FF4444", fontSize: 24 } })
+      ] })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(View, { style: { position: "absolute", top: 20, left: 20, width: 200 }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+      Button,
+      {
+        onClick: handlePhaseChange,
+        style: { padding: 20, backgroundColor: gamePhase === 0 ? "#4CAF50" : "#F44336" },
+        children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: gamePhase === 0 ? "\uAC74\uC124 \uBAA8\uB4DC" : "\uC804\uD22C \uBAA8\uB4DC" })
+      }
+    ) }),
     gamePhase === 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_jsx_runtime4.Fragment, { children: [
-      hasSelection && objType === 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(TowerSlidePanel, { towerInfos, isBlocked: isPathBlocked }),
+      hasSelection && objType === 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(TowerSlidePanel, { towerInfos, isBlocked: isPathBlocked, playerGold }),
       hasSelection && objType > 1 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_jsx_runtime4.Fragment, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(MenuButton, { emoji: "\u{1F5D1}\uFE0F", x: mouseX - 40, y: mouseY - 40, onClick: () => pmInput.RemoveObjectDirect() }),
-        (towerRangeType === 1 || towerRangeType === 3) && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-          MenuButton,
-          {
-            emoji: "\u{1F504}",
-            x: mouseX - 40,
-            y: mouseY - 130,
-            onClick: () => pmInput.IsEditMode = true,
-            isBlocked: false,
-            style: { backgroundColor: isEditMode ? "#4CAF50" : "#222" }
-          }
-        )
+        objType >= 100 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(View, { style: { position: "absolute", left: mouseX + 80, top: mouseY - 40, backgroundColor: "rgba(0,0,0,0.7)", padding: 10, borderRadius: 10 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: `\uACF5\uACA9\uB825: ${selDamage}`, style: { color: "white", fontSize: 18 } }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: `\uC0AC\uAC70\uB9AC: ${selRange.toFixed(1)}`, style: { color: "white", fontSize: 18 } }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(View, { style: { height: 4, backgroundColor: "white", marginTop: 4, marginBottom: 4, opacity: 0.3 } }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: `\uACF5\uACA9\uB825 \uC5C5: ${selDamageCost === -1 ? "MAX" : selDamageCost + "G"}`, style: { color: selDamageCost === -1 ? "#AAA" : playerGold >= selDamageCost ? "#FFD700" : "#FF6666", fontSize: 14 } }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: `\uC0AC\uAC70\uB9AC \uC5C5: ${selRangeCost === -1 ? "MAX" : selRangeCost + "G"}`, style: { color: selRangeCost === -1 ? "#AAA" : playerGold >= selRangeCost ? "#FFD700" : "#FF6666", fontSize: 14 } })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(MenuButton, { emoji: "\u{1F5D1}\uFE0F", x: mouseX - 130, y: mouseY + 50, onClick: () => pmInput.RemoveObjectDirect() }),
+        objType >= 100 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_jsx_runtime4.Fragment, { children: [
+          (towerRangeType === 1 || towerRangeType === 3) && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+            MenuButton,
+            {
+              emoji: "\u{1F504}",
+              x: mouseX - 40,
+              y: mouseY - 130,
+              stayOpen: true,
+              onClick: () => pmInput.IsEditMode = true,
+              isBlocked: false,
+              style: { backgroundColor: isEditMode ? "#4CAF50" : "#222" }
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+            MenuButton,
+            {
+              emoji: "\u2694\uFE0F",
+              x: mouseX - 40,
+              y: mouseY - 40,
+              onClick: () => pmInput.UpgradeDamage(),
+              stayOpen: true,
+              isBlocked: selDamageCost === -1 || playerGold < selDamageCost
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+            MenuButton,
+            {
+              emoji: "\u{1F4CF}",
+              x: mouseX + 50,
+              y: mouseY + 50,
+              onClick: () => pmInput.UpgradeRange(),
+              stayOpen: true,
+              isBlocked: selRangeCost === -1 || playerGold < selRangeCost
+            }
+          )
+        ] })
       ] })
     ] })
   ] });
 }
-function MenuButton({ emoji, x, y, onClick, isBlocked, style }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(View, { style: { position: "absolute", left: x, top: y, width: 80, height: 80 }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Button, { onClick, style: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#222",
-    borderWidth: 3,
-    borderColor: "white",
-    borderRadius: 40,
-    justifyContent: "center",
-    alignItems: "center",
-    opacity: isBlocked ? 0.3 : 1,
-    ...style
-  }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: emoji, style: { fontSize: 32 } }) }) });
+function MenuButton({ emoji, x, y, onClick, isBlocked, style, stayOpen }) {
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(View, { style: { position: "absolute", left: x, top: y, width: 80, height: 80 }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+    Button,
+    {
+      onPointerDown: () => stayOpen && pmInput.RefreshInteractionTimer(),
+      onClick,
+      style: {
+        width: "100%",
+        height: "100%",
+        backgroundColor: "#222",
+        borderWidth: 3,
+        borderColor: "white",
+        borderRadius: 40,
+        justifyContent: "center",
+        alignItems: "center",
+        opacity: isBlocked ? 0.3 : 1,
+        ...style
+      },
+      children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: emoji, style: { fontSize: 32 } })
+    }
+  ) });
 }
-function TowerSlidePanel({ towerInfos, isBlocked, onRemove }) {
+function TowerSlidePanel({ towerInfos, isBlocked, onRemove, playerGold }) {
   return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(View, { style: { position: "absolute", left: 0, right: 0, bottom: 0, height: "25%", paddingLeft: 12, paddingRight: 12, paddingTop: 0, paddingBottom: 0, backgroundColor: "#111" }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
     ScrollView,
     {
@@ -14467,10 +14527,10 @@ function TowerSlidePanel({ towerInfos, isBlocked, onRemove }) {
             `\uACF5\uACA9\uB825 ${Number(tower.Damage).toFixed(1)}`,
             `\uC0AC\uAC70\uB9AC ${Number(tower.MaxRange).toFixed(1)}`,
             `\uACF5\uC18D ${Number(tower.AttackSpeed).toFixed(2)}`,
-            `\uD0C0\uC785 ${tower.AttackType}`
+            `\uAC00\uACA9 ${tower.BuildCost}G`
           ],
-          isBlocked,
-          onClick: () => !isBlocked && pmInput.BuildTowerDirect(tower.Index)
+          isBlocked: isBlocked || playerGold < tower.BuildCost,
+          onClick: () => !isBlocked && playerGold >= tower.BuildCost && pmInput.BuildTowerDirect(tower.Index)
         },
         index
       )) })
@@ -14478,21 +14538,28 @@ function TowerSlidePanel({ towerInfos, isBlocked, onRemove }) {
   ) });
 }
 function TowerButton({ label, detailLines, onClick, isBlocked }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(View, { style: { width: 200, height: "100%", marginRight: 12 }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Button, { onClick, style: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#222",
-    borderWidth: 2,
-    borderColor: "white",
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    opacity: isBlocked ? 0.3 : 1
-  }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(View, { style: { alignItems: "center", paddingLeft: 6, paddingRight: 6, height: "100%", justifyContent: "center" }, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: label, style: { fontSize: 14, color: "white" } }),
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(View, { style: { height: 10 } }),
-    detailLines.map((line, idx) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: line, style: { fontSize: 12, color: "#ddd", marginBottom: idx < detailLines.length - 1 ? 4 : 0 } }, idx))
-  ] }) }) });
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(View, { style: { width: 200, height: "100%", marginRight: 12 }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+    Button,
+    {
+      onClick,
+      style: {
+        width: "100%",
+        height: "100%",
+        backgroundColor: "#222",
+        borderWidth: 2,
+        borderColor: "white",
+        borderRadius: 12,
+        justifyContent: "center",
+        alignItems: "center",
+        opacity: isBlocked ? 0.3 : 1
+      },
+      children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(View, { style: { alignItems: "center", paddingLeft: 6, paddingRight: 6, height: "100%", justifyContent: "center" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: label, style: { fontSize: 14, color: "white" } }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(View, { style: { height: 10 } }),
+        detailLines.map((line, idx) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Label, { text: line, style: { fontSize: 12, color: "#ddd", marginBottom: idx < detailLines.length - 1 ? 4 : 0 } }, idx))
+      ] })
+    }
+  ) });
 }
 render(/* @__PURE__ */ (0, import_jsx_runtime4.jsx)(App, {}), __root);
 /*! Bundled license information:

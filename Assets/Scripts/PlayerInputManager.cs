@@ -29,6 +29,7 @@ public struct TowerUiInfo
     public float MaxRange;
     public float MinRange;
     public string AttackType;
+    public int BuildCost;
 }
 
 [Serializable]
@@ -47,8 +48,8 @@ public class PlayerInputManager : MonoBehaviour
         get => _hasSelection;
         set
         {
-            // false로 바꿀 때, IsEditMode가 true가 된 지 0.1초가 지나지 않았다면 무시
-            if (!value && Time.time < _editModeStartTime + 0.1f)
+            // false로 바꿀 때, UI 인터랙션 중이라면 무시
+            if (!value && Time.time < _uiInteractionStartTime + 0.1f)
             {
                 return;
             }
@@ -85,23 +86,25 @@ public class PlayerInputManager : MonoBehaviour
     [HideInInspector] public float JS_MouseX { get; set; }
     [HideInInspector] public float JS_MouseY { get; set; }
     [HideInInspector] public int JS_TowerRangeType { get; set; } = -1;
+    [HideInInspector] public float JS_SelectedDamage { get; set; }
+    [HideInInspector] public float JS_SelectedRange { get; set; }
     
     private bool _isEditMode = false;
-    private float _editModeStartTime = -1f;
+    private float _uiInteractionStartTime = -1f;
     [HideInInspector] public bool IsEditMode 
     { 
         get => _isEditMode; 
         set
         {
             // false로 바꿀 때, true가 된 지 0.1초가 지나지 않았다면 무시
-            if (!value && Time.time < _editModeStartTime + 0.1f)
+            if (!value && Time.time < _uiInteractionStartTime + 0.1f)
             {
                 return;
             }
 
             if (value)
             {
-                _editModeStartTime = Time.time; // true가 된 시간 기록
+                _uiInteractionStartTime = Time.time; // true가 된 시간 기록
                 HasSelection = true; // HasSelection도 같이 true로 변경
                 RestoreTowerSelectionAndRange(); // 빠른 클릭으로 인해 해제되었을 수 있는 타워 선택 및 사거리 표시 복구
             }
@@ -143,6 +146,8 @@ public class PlayerInputManager : MonoBehaviour
                         else if (em.HasComponent<TowerRangeOffset>(towerEntity)) { var r = em.GetComponentData<TowerRangeOffset>(towerEntity); maxR = r.MaxRange + r.AttackRadius; minR = r.AttackRadius; offset = r.Offset; type = TowerRangeType.OffsetCircle; }
 
                         JS_TowerRangeType = (int)type;
+                        JS_SelectedDamage = towerStats.Damage;
+                        JS_SelectedRange = maxR;
                         _rangeVisualizer.ShowRange(towerTransform.Position, towerStats.LogicalRotation, maxR, minR, angle, offset, type);
                     }
                 }
@@ -174,6 +179,13 @@ public class PlayerInputManager : MonoBehaviour
     public Color normalPathColor = Color.white;
     public Color previewPathColor = new Color(0, 1, 0, 0.5f);
     public Color blockedPathColor = Color.red;
+
+    [Header("Economy UI")]
+    [HideInInspector] public int JS_PlayerGold { get; set; }
+    [HideInInspector] public int JS_PlayerHP { get; set; }
+    [HideInInspector] public int JS_SelectedDamageUpgradeCost { get; set; }
+    [HideInInspector] public int JS_SelectedRangeUpgradeCost { get; set; }
+    
     private List<LineRenderer> _pathLines = new List<LineRenderer>();
     private List<LineRenderer> _previewLines = new List<LineRenderer>();
 
@@ -273,6 +285,8 @@ public class PlayerInputManager : MonoBehaviour
             else if (em.HasComponent<AttackDirectData>(towerEntity)) attackTypeStr = "Direct";
 
             bool isAoe = em.HasComponent<AoEHitAttack>(towerEntity);
+            int buildCost = 0;
+            if (em.HasComponent<TowerCost>(towerEntity)) buildCost = em.GetComponentData<TowerCost>(towerEntity).BuildCost;
 
             list.Items.Add(new TowerUiInfo
             {
@@ -282,7 +296,8 @@ public class PlayerInputManager : MonoBehaviour
                 AttackSpeed = stats.AttackSpeed,
                 MaxRange = maxR,
                 MinRange = minR,
-                AttackType = attackTypeStr + (isAoe ? " (AoE)" : "")
+                AttackType = attackTypeStr + (isAoe ? " (AoE)" : ""),
+                BuildCost = buildCost
             });
         }
 
@@ -591,12 +606,83 @@ public class PlayerInputManager : MonoBehaviour
     private bool IsValidDiagonalMove(int currX, int currZ, int nx, int nz, TileInfo[,] targetMap) { if (currX == nx || currZ == nz) return true; if (targetMap[nx, currZ].objType > 1 || targetMap[currX, nz].objType > 1) return false; return true; }
     private float BiasForTile(int x, int z) { return (x + z * _mapWidth) / (_mapWidth * _mapHeight * _mapWidth * _mapHeight * 2.0f); }
 
+    public void RefreshInteractionTimer()
+    {
+        _uiInteractionStartTime = Time.time;
+    }
+
+    private void Update()
+    {
+        var world = World.DefaultGameObjectInjectionWorld;
+        if (world == null) return;
+        var em = world.EntityManager;
+
+        if (em.CreateEntityQuery(typeof(PlayerStats)).TryGetSingleton<PlayerStats>(out var stats))
+        {
+            JS_PlayerGold = stats.Gold;
+            JS_PlayerHP = stats.HP;
+        }
+
+        if (_selectedTowerEntity != Entity.Null && em.Exists(_selectedTowerEntity) && em.HasComponent<TowerCost>(_selectedTowerEntity))
+        {
+            var tc = em.GetComponentData<TowerCost>(_selectedTowerEntity);
+            
+            // Damage Upgrade Cost
+            if (em.HasBuffer<DamageUpgradeStepElement>(_selectedTowerEntity))
+            {
+                var buffer = em.GetBuffer<DamageUpgradeStepElement>(_selectedTowerEntity);
+                if (tc.DamageUpgradeLevel < buffer.Length)
+                    JS_SelectedDamageUpgradeCost = buffer[tc.DamageUpgradeLevel].Cost;
+                else
+                    JS_SelectedDamageUpgradeCost = -1; // Max Level
+            }
+            else JS_SelectedDamageUpgradeCost = 0;
+
+            // Range Upgrade Cost
+            if (em.HasBuffer<RangeUpgradeStepElement>(_selectedTowerEntity))
+            {
+                var buffer = em.GetBuffer<RangeUpgradeStepElement>(_selectedTowerEntity);
+                if (tc.RangeUpgradeLevel < buffer.Length)
+                    JS_SelectedRangeUpgradeCost = buffer[tc.RangeUpgradeLevel].Cost;
+                else
+                    JS_SelectedRangeUpgradeCost = -1; // Max Level
+            }
+            else JS_SelectedRangeUpgradeCost = 0;
+        }
+        else
+        {
+            JS_SelectedDamageUpgradeCost = 0;
+            JS_SelectedRangeUpgradeCost = 0;
+        }
+    }
+
     public void BuildTowerDirect(int towerIdx)
     {
         int x = this.JS_X; int z = this.JS_Z; if (CheckIfAnyPathBlocked(this._simMapData)) return;
         var world = World.DefaultGameObjectInjectionWorld; var em = world.EntityManager;
+        
+        // PlayerStats 체크
+        if (!em.CreateEntityQuery(typeof(PlayerStats)).TryGetSingletonRW<PlayerStats>(out var statsRef)) return;
+        
         var configQuery = em.CreateEntityQuery(typeof(MapConfig)); Entity configEntity = configQuery.GetSingletonEntity();
-        var prefabBuffer = em.GetBuffer<TowerPrefabElement>(configEntity); Entity prefabEntity = prefabBuffer[towerIdx].Value; Entity towerEntity = em.Instantiate(prefabEntity);
+        var prefabBuffer = em.GetBuffer<TowerPrefabElement>(configEntity); Entity prefabEntity = prefabBuffer[towerIdx].Value; 
+        
+        // 가격 체크
+        int buildCost = 0;
+        if (em.HasComponent<TowerCost>(prefabEntity))
+        {
+            buildCost = em.GetComponentData<TowerCost>(prefabEntity).BuildCost;
+        }
+        
+        if (statsRef.ValueRO.Gold < buildCost)
+        {
+            Debug.Log($"[Build] Not enough gold! Need {buildCost}, have {statsRef.ValueRO.Gold}");
+            return;
+        }
+        
+        statsRef.ValueRW.Gold -= buildCost;
+        
+        Entity towerEntity = em.Instantiate(prefabEntity);
         var objData = em.GetBuffer<ObjectDataElement>(configEntity); var objEntities = em.GetBuffer<ObjectEntityElement>(configEntity);
         var prefabTr = em.GetComponentData<LocalTransform>(prefabEntity); em.SetComponentData(towerEntity, prefabTr.WithPosition(new float3(x, 0.2f, z)));
         int dataIndex = z * _mapWidth + x; int pickingId = dataIndex + 1;
@@ -612,10 +698,147 @@ public class PlayerInputManager : MonoBehaviour
         var world = World.DefaultGameObjectInjectionWorld; var em = world.EntityManager;
         var configQuery = em.CreateEntityQuery(typeof(MapConfig)); Entity configEntity = configQuery.GetSingletonEntity();
         int dataIndex = JS_Z * _mapWidth + JS_X; var objEntitiesInitial = em.GetBuffer<ObjectEntityElement>(configEntity); Entity targetEntity = objEntitiesInitial[dataIndex].Value;
+        
+        // 제거 시 골드 환불 (옵션이지만 일단 구현 안함)
+        
         if (targetEntity != Entity.Null && em.Exists(targetEntity)) em.DestroyEntity(targetEntity);
         var objData = em.GetBuffer<ObjectDataElement>(configEntity); var objEntities = em.GetBuffer<ObjectEntityElement>(configEntity);
         objData[dataIndex] = new ObjectDataElement { Value = 0 }; objEntities[dataIndex] = new ObjectEntityElement { Value = Entity.Null };
         this.JS_Obj = 0; this.SetTileData(JS_X, JS_Z, JS_Floor, 0); this.UpdatePathAt(JS_X, JS_Z); this.HasSelection = false;
+    }
+
+    public void UpgradeDamage()
+    {
+        RefreshInteractionTimer();
+        if (_selectedTowerEntity == Entity.Null) return;
+        var world = World.DefaultGameObjectInjectionWorld;
+        var em = world.EntityManager;
+        if (!em.Exists(_selectedTowerEntity) || !em.HasComponent<TowerStats>(_selectedTowerEntity)) return;
+
+        if (!em.CreateEntityQuery(typeof(PlayerStats)).TryGetSingletonRW<PlayerStats>(out var statsRef)) return;
+        
+        if (em.HasComponent<TowerCost>(_selectedTowerEntity) && em.HasBuffer<DamageUpgradeStepElement>(_selectedTowerEntity))
+        {
+            var tc = em.GetComponentData<TowerCost>(_selectedTowerEntity);
+            var buffer = em.GetBuffer<DamageUpgradeStepElement>(_selectedTowerEntity);
+            
+            if (tc.DamageUpgradeLevel >= buffer.Length)
+            {
+                Debug.Log("[Upgrade] Damage is already at max level!");
+                return;
+            }
+
+            var step = buffer[tc.DamageUpgradeLevel];
+            if (statsRef.ValueRO.Gold < step.Cost)
+            {
+                Debug.Log($"[Upgrade] Not enough gold! Need {step.Cost}, have {statsRef.ValueRO.Gold}");
+                return;
+            }
+            
+            statsRef.ValueRW.Gold -= step.Cost;
+            
+            // Apply Damage
+            var stats = em.GetComponentData<TowerStats>(_selectedTowerEntity);
+            stats.Damage += (int)step.Value;
+            em.SetComponentData(_selectedTowerEntity, stats);
+            
+            tc.DamageUpgradeLevel++;
+            em.SetComponentData(_selectedTowerEntity, tc);
+            
+            JS_SelectedDamage = stats.Damage;
+            Debug.Log($"[Upgrade] Damage upgraded to {stats.Damage} for {step.Cost} gold");
+        }
+    }
+
+    public void UpgradeRange()
+    {
+        RefreshInteractionTimer();
+        if (_selectedTowerEntity == Entity.Null) return;
+        var world = World.DefaultGameObjectInjectionWorld;
+        var em = world.EntityManager;
+        if (!em.Exists(_selectedTowerEntity)) return;
+
+        if (!em.CreateEntityQuery(typeof(PlayerStats)).TryGetSingletonRW<PlayerStats>(out var statsRef)) return;
+        
+        float rangeValue = 0;
+        int cost = 0;
+
+        if (em.HasComponent<TowerCost>(_selectedTowerEntity) && em.HasBuffer<RangeUpgradeStepElement>(_selectedTowerEntity))
+        {
+            var tc = em.GetComponentData<TowerCost>(_selectedTowerEntity);
+            var buffer = em.GetBuffer<RangeUpgradeStepElement>(_selectedTowerEntity);
+
+            if (tc.RangeUpgradeLevel >= buffer.Length)
+            {
+                Debug.Log("[Upgrade] Range is already at max level!");
+                return;
+            }
+
+            var step = buffer[tc.RangeUpgradeLevel];
+            if (statsRef.ValueRO.Gold < step.Cost)
+            {
+                Debug.Log($"[Upgrade] Not enough gold! Need {step.Cost}, have {statsRef.ValueRO.Gold}");
+                return;
+            }
+
+            statsRef.ValueRW.Gold -= step.Cost;
+            rangeValue = step.Value;
+            cost = step.Cost;
+            
+            tc.RangeUpgradeLevel++;
+            em.SetComponentData(_selectedTowerEntity, tc);
+        }
+        else return;
+
+        bool rangeChanged = false;
+        float maxR = 0, minR = 0, angle = 360f;
+        float3 offset = float3.zero;
+        TowerRangeType type = TowerRangeType.Default;
+
+        if (em.HasComponent<TowerRangeDefault>(_selectedTowerEntity))
+        {
+            var r = em.GetComponentData<TowerRangeDefault>(_selectedTowerEntity);
+            r.MaxRange += rangeValue;
+            em.SetComponentData(_selectedTowerEntity, r);
+            maxR = r.MaxRange;
+            rangeChanged = true;
+        }
+        else if (em.HasComponent<TowerRangeSector>(_selectedTowerEntity))
+        {
+            var r = em.GetComponentData<TowerRangeSector>(_selectedTowerEntity);
+            r.MaxRange += rangeValue;
+            em.SetComponentData(_selectedTowerEntity, r);
+            maxR = r.MaxRange; angle = r.Angle; type = TowerRangeType.Sector;
+            rangeChanged = true;
+        }
+        else if (em.HasComponent<TowerRangeAnnulus>(_selectedTowerEntity))
+        {
+            var r = em.GetComponentData<TowerRangeAnnulus>(_selectedTowerEntity);
+            r.MaxRange += rangeValue;
+            em.SetComponentData(_selectedTowerEntity, r);
+            maxR = r.MaxRange; minR = r.MinRange; type = TowerRangeType.Annulus;
+            rangeChanged = true;
+        }
+        else if (em.HasComponent<TowerRangeOffset>(_selectedTowerEntity))
+        {
+            var r = em.GetComponentData<TowerRangeOffset>(_selectedTowerEntity);
+            r.MaxRange += rangeValue;
+            em.SetComponentData(_selectedTowerEntity, r);
+            maxR = r.MaxRange + r.AttackRadius; minR = r.AttackRadius; offset = r.Offset; type = TowerRangeType.OffsetCircle;
+            rangeChanged = true;
+        }
+
+        if (rangeChanged)
+        {
+            JS_SelectedRange = maxR;
+            Debug.Log($"[Upgrade] Range upgraded to {maxR} for {cost} gold");
+            if (_rangeVisualizer != null)
+            {
+                var stats = em.GetComponentData<TowerStats>(_selectedTowerEntity);
+                var transform = em.GetComponentData<LocalTransform>(_selectedTowerEntity);
+                _rangeVisualizer.ShowRange(transform.Position, stats.LogicalRotation, maxR, minR, angle, offset, type);
+            }
+        }
     }
 
     public void SetGamePhase(int phase) { GamePhase = phase; }
@@ -631,7 +854,11 @@ public class PlayerInputManager : MonoBehaviour
         if (panel == null) return;
         Vector2 panelPos = RuntimePanelUtils.ScreenToPanel(panel, screenPos);
         VisualElement pickedElement = panel.Pick(panelPos);
-        if (pickedElement != null && pickedElement != _rootElement) return;
+        if (pickedElement != null && pickedElement != _rootElement) 
+        {
+            // Debug.Log($"Picked UI: {pickedElement.name}");
+            return;
+        }
         if (HasSelection) { HasSelection = false; return; }
         DoPick(screenPos, panelPos);
     }
@@ -686,7 +913,10 @@ public class PlayerInputManager : MonoBehaviour
                             else if (em.HasComponent<TowerRangeSector>(towerEntity)) { var r = em.GetComponentData<TowerRangeSector>(towerEntity); maxR = r.MaxRange; angle = r.Angle; type = TowerRangeType.Sector; }
                             else if (em.HasComponent<TowerRangeAnnulus>(towerEntity)) { var r = em.GetComponentData<TowerRangeAnnulus>(towerEntity); maxR = r.MaxRange; minR = r.MinRange; type = TowerRangeType.Annulus; }
                             else if (em.HasComponent<TowerRangeOffset>(towerEntity)) { var r = em.GetComponentData<TowerRangeOffset>(towerEntity); maxR = r.MaxRange + r.AttackRadius; minR = r.AttackRadius; offset = r.Offset; type = TowerRangeType.OffsetCircle; }
-                            JS_TowerRangeType = (int)type; _rangeVisualizer.ShowRange(towerTransform.Position, towerStats.LogicalRotation, maxR, minR, angle, offset, type);
+                            JS_TowerRangeType = (int)type; 
+                            JS_SelectedDamage = towerStats.Damage;
+                            JS_SelectedRange = maxR;
+                            _rangeVisualizer.ShowRange(towerTransform.Position, towerStats.LogicalRotation, maxR, minR, angle, offset, type);
                         }
                     }
                 }

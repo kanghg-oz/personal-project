@@ -9,14 +9,23 @@ using Unity.Transforms;
 [BurstCompile]
 public partial struct FireSystem : ISystem
 {
+    private EntityQuery _monsterQuery;
+
+    [BurstCompile]
+    public void OnCreate(ref SystemState state)
+    {
+        _monsterQuery = SystemAPI.QueryBuilder().WithAll<MonsterData, LocalTransform>().Build();
+        state.RequireForUpdate(_monsterQuery);
+        state.RequireForUpdate<BeginSimulationEntityCommandBufferSystem.Singleton>();
+    }
+
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        var monsterQuery = SystemAPI.QueryBuilder().WithAll<MonsterData, LocalTransform>().Build();
-        if (monsterQuery.IsEmpty) return;
+        if (_monsterQuery.IsEmpty) return;
 
-        var monsterEntities = monsterQuery.ToEntityArray(Allocator.TempJob);
-        var monsterTransforms = monsterQuery.ToComponentDataArray<LocalTransform>(Allocator.TempJob);
+        var monsterEntities = _monsterQuery.ToEntityArray(Allocator.TempJob);
+        var monsterTransforms = _monsterQuery.ToComponentDataArray<LocalTransform>(Allocator.TempJob);
 
         var monsterPositions = new NativeArray<MonsterPosInfo>(monsterTransforms.Length, Allocator.TempJob);
         for (int i = 0; i < monsterTransforms.Length; i++)
@@ -33,6 +42,17 @@ public partial struct FireSystem : ISystem
         float dt = SystemAPI.Time.DeltaTime;
         float currentTime = (float)SystemAPI.Time.ElapsedTime;
 
+        var monsterLookup = SystemAPI.GetComponentLookup<MonsterData>(false);
+        var hitDataLookup = SystemAPI.GetComponentLookup<AttackHitData>(true);
+        var aoeHitLookup = SystemAPI.GetComponentLookup<AoEHitAttack>(true);
+        var directDataLookup = SystemAPI.GetComponentLookup<AttackDirectData>(true);
+        var projDataLookup = SystemAPI.GetComponentLookup<AttackProjectileData>(true);
+        var vfxPoolLookup = SystemAPI.GetComponentLookup<TowerVFXPool>(false);
+        var rangeDefaultLookup = SystemAPI.GetComponentLookup<TowerRangeDefault>(true);
+        var rangeSectorLookup = SystemAPI.GetComponentLookup<TowerRangeSector>(true);
+        var rangeAnnulusLookup = SystemAPI.GetComponentLookup<TowerRangeAnnulus>(true);
+        var rangeOffsetLookup = SystemAPI.GetComponentLookup<TowerRangeOffset>(true);
+
         // 1. Default Range Towers
         foreach (var (stats, range, transform, towerEntity) in 
             SystemAPI.Query<RefRW<TowerStats>, RefRO<TowerRangeDefault>, RefRW<LocalTransform>>().WithEntityAccess())
@@ -42,7 +62,9 @@ public partial struct FireSystem : ISystem
 
             if (FindTargetDefault(transform.ValueRO.Position, range.ValueRO.MaxRange, monsterPositions, out var tPos, out var tEnt))
             {
-                ExecuteFire(ref state, stats, transform, towerEntity, tPos, tEnt, ecb, currentTime, monsterPositions);
+                ExecuteFire(ref state, stats, transform, towerEntity, tPos, tEnt, ecb, currentTime, monsterPositions,
+                    hitDataLookup, aoeHitLookup, directDataLookup, projDataLookup, vfxPoolLookup, 
+                    rangeDefaultLookup, rangeSectorLookup, rangeAnnulusLookup, rangeOffsetLookup, monsterLookup);
             }
         }
 
@@ -55,7 +77,9 @@ public partial struct FireSystem : ISystem
 
             if (FindTargetSector(transform.ValueRO.Position, stats.ValueRO.LogicalRotation, range.ValueRO.MaxRange, range.ValueRO.Angle, monsterPositions, out var tPos, out var tEnt))
             {
-                ExecuteFire(ref state, stats, transform, towerEntity, tPos, tEnt, ecb, currentTime, monsterPositions);
+                ExecuteFire(ref state, stats, transform, towerEntity, tPos, tEnt, ecb, currentTime, monsterPositions,
+                    hitDataLookup, aoeHitLookup, directDataLookup, projDataLookup, vfxPoolLookup, 
+                    rangeDefaultLookup, rangeSectorLookup, rangeAnnulusLookup, rangeOffsetLookup, monsterLookup);
             }
         }
 
@@ -68,7 +92,9 @@ public partial struct FireSystem : ISystem
 
             if (FindTargetAnnulus(transform.ValueRO.Position, range.ValueRO.MaxRange, range.ValueRO.MinRange, monsterPositions, out var tPos, out var tEnt))
             {
-                ExecuteFire(ref state, stats, transform, towerEntity, tPos, tEnt, ecb, currentTime, monsterPositions);
+                ExecuteFire(ref state, stats, transform, towerEntity, tPos, tEnt, ecb, currentTime, monsterPositions,
+                    hitDataLookup, aoeHitLookup, directDataLookup, projDataLookup, vfxPoolLookup, 
+                    rangeDefaultLookup, rangeSectorLookup, rangeAnnulusLookup, rangeOffsetLookup, monsterLookup);
             }
         }
 
@@ -81,7 +107,9 @@ public partial struct FireSystem : ISystem
 
             if (FindTargetOffset(transform.ValueRO.Position, stats.ValueRO.LogicalRotation, range.ValueRO.AttackRadius, range.ValueRO.Offset, monsterPositions, out var tPos, out var tEnt))
             {
-                ExecuteFire(ref state, stats, transform, towerEntity, tPos, tEnt, ecb, currentTime, monsterPositions);
+                ExecuteFire(ref state, stats, transform, towerEntity, tPos, tEnt, ecb, currentTime, monsterPositions,
+                    hitDataLookup, aoeHitLookup, directDataLookup, projDataLookup, vfxPoolLookup, 
+                    rangeDefaultLookup, rangeSectorLookup, rangeAnnulusLookup, rangeOffsetLookup, monsterLookup);
             }
         }
 
@@ -90,7 +118,7 @@ public partial struct FireSystem : ISystem
             bullet.ValueRW.Timer += dt * bullet.ValueRO.Speed;
             if (bullet.ValueRO.Timer >= 1.0f && bullet.ValueRO.Timer < 2.0f)
             {
-                ApplyBulletDamage(ref state, bullet.ValueRO, monsterPositions, ecb);
+                ApplyBulletDamage(ref state, bullet.ValueRO, monsterPositions, ecb, monsterLookup, vfxPoolLookup);
                 bullet.ValueRW.Timer = 2.0f;
             }
         }
@@ -102,11 +130,16 @@ public partial struct FireSystem : ISystem
 
     [BurstCompile]
     private void ExecuteFire(ref SystemState state, RefRW<TowerStats> stats, RefRW<LocalTransform> transform, 
-        Entity towerEntity, float3 targetPos, Entity targetEntity, EntityCommandBuffer ecb, float currentTime, NativeArray<MonsterPosInfo> monsterPositions)
+        Entity towerEntity, float3 targetPos, Entity targetEntity, EntityCommandBuffer ecb, float currentTime, NativeArray<MonsterPosInfo> monsterPositions,
+        ComponentLookup<AttackHitData> hitDataLookup, ComponentLookup<AoEHitAttack> aoeHitLookup, ComponentLookup<AttackDirectData> directDataLookup,
+        ComponentLookup<AttackProjectileData> projDataLookup, ComponentLookup<TowerVFXPool> vfxPoolLookup,
+        ComponentLookup<TowerRangeDefault> rangeDefaultLookup, ComponentLookup<TowerRangeSector> rangeSectorLookup,
+        ComponentLookup<TowerRangeAnnulus> rangeAnnulusLookup, ComponentLookup<TowerRangeOffset> rangeOffsetLookup,
+        ComponentLookup<MonsterData> monsterLookup)
     {
         var fireTime = SystemAPI.GetComponentRW<TowerFireTime>(towerEntity);
         var bulletPool = SystemAPI.GetComponentRW<TowerBulletPool>(towerEntity);
-        var vfxPool = SystemAPI.GetComponentRW<TowerVFXPool>(towerEntity);
+        var vfxPool = vfxPoolLookup[towerEntity];
         var bulletBuffer = SystemAPI.GetBuffer<TowerBulletElement>(towerEntity);
         var vfxBuffer = SystemAPI.GetBuffer<TowerVFXElement>(towerEntity);
         
@@ -122,16 +155,16 @@ public partial struct FireSystem : ISystem
             if (stats.ValueRO.Rotationable) transform.ValueRW.Rotation = lookRot;
         }
 
-        if (state.EntityManager.HasComponent<AttackHitData>(towerEntity))
+        if (hitDataLookup.HasComponent(towerEntity))
         {
-            if (state.EntityManager.HasComponent<AoEHitAttack>(towerEntity))
+            if (aoeHitLookup.HasComponent(towerEntity))
             {
-                float radius = state.EntityManager.GetComponentData<AoEHitAttack>(towerEntity).AoERadius;
-                ApplyAoEDamage(ref state, targetPos, radius, stats.ValueRO.Damage, monsterPositions, ecb);
+                float radius = aoeHitLookup[towerEntity].AoERadius;
+                ApplyAoEDamage(ref state, targetPos, radius, stats.ValueRO.Damage, monsterPositions, ecb, monsterLookup);
             }
             else
             {
-                ApplySingleDamage(ref state, targetEntity, stats.ValueRO.Damage, ecb);
+                ApplySingleDamage(ref monsterLookup, targetEntity, stats.ValueRO.Damage, ecb);
             }
 
             if (bulletBuffer.Length > 0)
@@ -145,14 +178,15 @@ public partial struct FireSystem : ISystem
 
             if (vfxBuffer.Length > 0)
             {
-                Entity vfxEntity = vfxBuffer[vfxPool.ValueRW.CurrentIndex % vfxBuffer.Length].Value;
-                vfxPool.ValueRW.CurrentIndex++;
+                Entity vfxEntity = vfxBuffer[vfxPool.CurrentIndex % vfxBuffer.Length].Value;
+                vfxPool.CurrentIndex++;
+                vfxPoolLookup[towerEntity] = vfxPool;
 
                 ecb.SetComponent(vfxEntity, LocalTransform.FromPosition(targetPos));
                 ecb.AppendToBuffer(towerEntity, new VFXPlayRequest { VfxEntity = vfxEntity });
             }
         }
-        else if (state.EntityManager.HasComponent<AttackDirectData>(towerEntity) || state.EntityManager.HasComponent<AttackProjectileData>(towerEntity))
+        else if (directDataLookup.HasComponent(towerEntity) || projDataLookup.HasComponent(towerEntity))
         {
             if (bulletBuffer.Length > 0)
             {
@@ -166,24 +200,24 @@ public partial struct FireSystem : ISystem
                 float bulletHeight = 0f;
                 TowerAttackType attackType = TowerAttackType.Projectile;
 
-                if (state.EntityManager.HasComponent<AttackDirectData>(towerEntity))
+                if (directDataLookup.HasComponent(towerEntity))
                 {
-                    var directData = state.EntityManager.GetComponentData<AttackDirectData>(towerEntity);
-                    float maxRange = GetMaxRange(ref state, towerEntity);
+                    var directData = directDataLookup[towerEntity];
+                    float maxRange = GetMaxRange(towerEntity, rangeDefaultLookup, rangeSectorLookup, rangeAnnulusLookup, rangeOffsetLookup);
                     float safeDistance = math.max(distance, 0.1f);
                     bulletSpeed = directData.Speed * (maxRange / safeDistance);
                     attackType = TowerAttackType.Direct;
                 }
                 else
                 {
-                    var projData = state.EntityManager.GetComponentData<AttackProjectileData>(towerEntity);
+                    var projData = projDataLookup[towerEntity];
                     bulletSpeed = projData.Speed;
                     bulletHeight = projData.Height;
                 }
 
-                bool isAoe = state.EntityManager.HasComponent<AoEHitAttack>(towerEntity);
+                bool isAoe = aoeHitLookup.HasComponent(towerEntity);
                 float aoeRadius = 0f;
-                if (isAoe) aoeRadius = state.EntityManager.GetComponentData<AoEHitAttack>(towerEntity).AoERadius;
+                if (isAoe) aoeRadius = aoeHitLookup[towerEntity].AoERadius;
 
                 ecb.SetComponent(bulletEntity, new BulletData
                 {
@@ -213,14 +247,16 @@ public partial struct FireSystem : ISystem
         stats.ValueRW.AttackTimer = 1f / stats.ValueRO.AttackSpeed;
     }
 
-    private float GetMaxRange(ref SystemState state, Entity tower)
+    private float GetMaxRange(Entity tower, 
+        ComponentLookup<TowerRangeDefault> rangeDefaultLookup, ComponentLookup<TowerRangeSector> rangeSectorLookup,
+        ComponentLookup<TowerRangeAnnulus> rangeAnnulusLookup, ComponentLookup<TowerRangeOffset> rangeOffsetLookup)
     {
-        if (state.EntityManager.HasComponent<TowerRangeDefault>(tower)) return state.EntityManager.GetComponentData<TowerRangeDefault>(tower).MaxRange;
-        if (state.EntityManager.HasComponent<TowerRangeSector>(tower)) return state.EntityManager.GetComponentData<TowerRangeSector>(tower).MaxRange;
-        if (state.EntityManager.HasComponent<TowerRangeAnnulus>(tower)) return state.EntityManager.GetComponentData<TowerRangeAnnulus>(tower).MaxRange;
-        if (state.EntityManager.HasComponent<TowerRangeOffset>(tower))
+        if (rangeDefaultLookup.HasComponent(tower)) return rangeDefaultLookup[tower].MaxRange;
+        if (rangeSectorLookup.HasComponent(tower)) return rangeSectorLookup[tower].MaxRange;
+        if (rangeAnnulusLookup.HasComponent(tower)) return rangeAnnulusLookup[tower].MaxRange;
+        if (rangeOffsetLookup.HasComponent(tower))
         {
-            var r = state.EntityManager.GetComponentData<TowerRangeOffset>(tower);
+            var r = rangeOffsetLookup[tower];
             return r.MaxRange + r.AttackRadius;
         }
         return 5f;
@@ -364,18 +400,19 @@ public partial struct FireSystem : ISystem
         return low;
     }
 
-    private void ApplySingleDamage(ref SystemState state, Entity target, int damage, EntityCommandBuffer ecb)
+    private void ApplySingleDamage(ref ComponentLookup<MonsterData> monsterLookup, Entity target, int damage, EntityCommandBuffer ecb)
     {
-        if (state.EntityManager.Exists(target) && state.EntityManager.HasComponent<MonsterData>(target))
+        if (monsterLookup.HasComponent(target))
         {
-            var data = state.EntityManager.GetComponentData<MonsterData>(target);
+            var data = monsterLookup[target];
+            if (data.HP <= 0) return; // Already dead/dying
+            
             data.HP -= damage;
-            if (data.HP <= 0) ecb.DestroyEntity(target);
-            else ecb.SetComponent(target, data);
+            monsterLookup[target] = data; // Immediate update for other bullets in this frame
         }
     }
 
-    private void ApplyAoEDamage(ref SystemState state, float3 center, float radius, int damage, NativeArray<MonsterPosInfo> monsterPositions, EntityCommandBuffer ecb)
+    private void ApplyAoEDamage(ref SystemState state, float3 center, float radius, int damage, NativeArray<MonsterPosInfo> monsterPositions, EntityCommandBuffer ecb, ComponentLookup<MonsterData> monsterLookup)
     {
         float radiusSq = radius * radius;
         float2 center2D = new float2(center.x, center.z);
@@ -386,31 +423,31 @@ public partial struct FireSystem : ISystem
             float dx = monsterPositions[i].Position.x - center.x;
             if (dx * dx > radiusSq) break;
             if (math.distancesq(center2D, new float2(monsterPositions[i].Position.x, monsterPositions[i].Position.z)) <= radiusSq)
-                ApplySingleDamage(ref state, monsterPositions[i].Entity, damage, ecb);
+                ApplySingleDamage(ref monsterLookup, monsterPositions[i].Entity, damage, ecb);
         }
         for (int i = startIdx - 1; i >= 0; i--)
         {
             float dx = center.x - monsterPositions[i].Position.x;
             if (dx * dx > radiusSq) break;
             if (math.distancesq(center2D, new float2(monsterPositions[i].Position.x, monsterPositions[i].Position.z)) <= radiusSq)
-                ApplySingleDamage(ref state, monsterPositions[i].Entity, damage, ecb);
+                ApplySingleDamage(ref monsterLookup, monsterPositions[i].Entity, damage, ecb);
         }
     }
 
-    private void ApplyBulletDamage(ref SystemState state, BulletData bullet, NativeArray<MonsterPosInfo> monsters, EntityCommandBuffer ecb)
+    private void ApplyBulletDamage(ref SystemState state, BulletData bullet, NativeArray<MonsterPosInfo> monsters, EntityCommandBuffer ecb, ComponentLookup<MonsterData> monsterLookup, ComponentLookup<TowerVFXPool> vfxPoolLookup)
     {
-        if (bullet.IsAoe) ApplyAoEDamage(ref state, bullet.EndPos, bullet.AoERadius, bullet.Damage, monsters, ecb);
-        else ApplySingleDamage(ref state, bullet.TargetEntity, bullet.Damage, ecb);
+        if (bullet.IsAoe) ApplyAoEDamage(ref state, bullet.EndPos, bullet.AoERadius, bullet.Damage, monsters, ecb, monsterLookup);
+        else ApplySingleDamage(ref monsterLookup, bullet.TargetEntity, bullet.Damage, ecb);
 
-        if (bullet.TowerEntity != Entity.Null && state.EntityManager.HasComponent<TowerVFXPool>(bullet.TowerEntity))
+        if (bullet.TowerEntity != Entity.Null && vfxPoolLookup.HasComponent(bullet.TowerEntity))
         {
-            var vfxPool = state.EntityManager.GetComponentData<TowerVFXPool>(bullet.TowerEntity);
-            var vfxBuffer = state.EntityManager.GetBuffer<TowerVFXElement>(bullet.TowerEntity);
+            var vfxPool = vfxPoolLookup[bullet.TowerEntity];
+            var vfxBuffer = SystemAPI.GetBuffer<TowerVFXElement>(bullet.TowerEntity);
             if (vfxBuffer.IsCreated && vfxBuffer.Length > 0)
             {
                 Entity vfxEntity = vfxBuffer[vfxPool.CurrentIndex % vfxBuffer.Length].Value;
                 vfxPool.CurrentIndex++;
-                state.EntityManager.SetComponentData(bullet.TowerEntity, vfxPool);
+                vfxPoolLookup[bullet.TowerEntity] = vfxPool;
                 
                 ecb.SetComponent(vfxEntity, LocalTransform.FromPosition(bullet.EndPos));
                 ecb.AppendToBuffer(bullet.TowerEntity, new VFXPlayRequest { VfxEntity = vfxEntity });
