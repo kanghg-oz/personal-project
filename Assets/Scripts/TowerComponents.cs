@@ -70,6 +70,22 @@ public struct VFXScaleProperty : IComponentData
     public float Value;
 }
 
+public struct MonsterPosInfo
+{
+    public Unity.Mathematics.float3 Position;
+    public Unity.Entities.Entity Entity;
+}
+
+public struct MonsterSpatialSingleton : IComponentData
+{
+    public Unity.Collections.NativeList<MonsterPosInfo> SortedMonsters;
+}
+
+public struct MonsterXComparer : System.Collections.Generic.IComparer<MonsterPosInfo>
+{
+    public int Compare(MonsterPosInfo x, MonsterPosInfo y) => x.Position.x.CompareTo(y.Position.x);
+}
+
 // Range Components
 public struct TowerRangeDefault : IComponentData { public float MaxRange; }
 public struct TowerRangeSector : IComponentData { public float MaxRange; public float Angle; }

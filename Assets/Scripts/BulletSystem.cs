@@ -9,51 +9,43 @@ using Unity.Transforms;
 [BurstCompile]
 public partial struct BulletSystem : ISystem
 {
-    private EntityQuery _monsterQuery;
+    private ComponentLookup<MonsterData> _monsterLookup;
+    private ComponentLookup<TowerVFXPool> _vfxPoolLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        _monsterQuery = SystemAPI.QueryBuilder().WithAll<MonsterData, LocalTransform>().Build();
+        state.RequireForUpdate<MonsterSpatialSingleton>();
+        _monsterLookup = state.GetComponentLookup<MonsterData>(false);
+        _vfxPoolLookup = state.GetComponentLookup<TowerVFXPool>(false);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
+        _monsterLookup.Update(ref state);
+        _vfxPoolLookup.Update(ref state);
+
+        var spatialSingleton = SystemAPI.GetSingleton<MonsterSpatialSingleton>();
+        var monsterPositions = spatialSingleton.SortedMonsters.AsArray();
+
         var ecb = SystemAPI.GetSingleton<BeginSimulationEntityCommandBufferSystem.Singleton>().CreateCommandBuffer(state.WorldUnmanaged);
         float dt = SystemAPI.Time.DeltaTime;
         float currentTime = (float)SystemAPI.Time.ElapsedTime;
 
-        // 몬스터 정보 수집 (데미지 판정용)
-        var monsterEntities = _monsterQuery.ToEntityArray(Allocator.TempJob);
-        var monsterTransforms = _monsterQuery.ToComponentDataArray<LocalTransform>(Allocator.TempJob);
-        var monsterPositions = new NativeArray<MonsterPosInfo>(monsterTransforms.Length, Allocator.TempJob);
-        for (int i = 0; i < monsterTransforms.Length; i++)
-        {
-            monsterPositions[i] = new MonsterPosInfo
-            {
-                Position = monsterTransforms[i].Position,
-                Entity = monsterEntities[i]
-            };
-        }
-        monsterPositions.Sort(new MonsterXComparer());
-
-        var monsterLookup = SystemAPI.GetComponentLookup<MonsterData>(false);
-        var vfxPoolLookup = SystemAPI.GetComponentLookup<TowerVFXPool>(false);
-
         // 1. Single Hit Damage Handling
         foreach (var (hitRequest, hitEntity) in SystemAPI.Query<RefRO<SingleDamageRequest>>().WithEntityAccess())
         {
-            ApplySingleDamage(ref monsterLookup, hitRequest.ValueRO.TargetEntity, hitRequest.ValueRO.Damage);
-            TriggerExplosionVFX(ref state, hitRequest.ValueRO.TowerEntity, hitRequest.ValueRO.ImpactPosition, ecb, vfxPoolLookup);
+            ApplySingleDamage(ref _monsterLookup, hitRequest.ValueRO.TargetEntity, hitRequest.ValueRO.Damage);
+            TriggerExplosionVFX(ref state, hitRequest.ValueRO.TowerEntity, hitRequest.ValueRO.ImpactPosition, ecb, ref _vfxPoolLookup);
             ecb.RemoveComponent<SingleDamageRequest>(hitEntity);
         }
 
         // 2. AoE Hit Damage Handling
         foreach (var (hitRequest, hitEntity) in SystemAPI.Query<RefRO<AoEDamageRequest>>().WithEntityAccess())
         {
-            ApplyAoEDamage(hitRequest.ValueRO.TargetPosition, hitRequest.ValueRO.Radius, hitRequest.ValueRO.Damage, monsterPositions, monsterLookup);
-            TriggerExplosionVFX(ref state, hitRequest.ValueRO.TowerEntity, hitRequest.ValueRO.TargetPosition, ecb, vfxPoolLookup);
+            ApplyAoEDamage(hitRequest.ValueRO.TargetPosition, hitRequest.ValueRO.Radius, hitRequest.ValueRO.Damage, monsterPositions, ref _monsterLookup);
+            TriggerExplosionVFX(ref state, hitRequest.ValueRO.TowerEntity, hitRequest.ValueRO.TargetPosition, ecb, ref _vfxPoolLookup);
             ecb.RemoveComponent<AoEDamageRequest>(hitEntity);
         }
 
@@ -68,24 +60,20 @@ public partial struct BulletSystem : ISystem
             {
                 if (bullet.ValueRO.IsAoe) 
                 {
-                    ApplyAoEDamage(bullet.ValueRO.EndPos, bullet.ValueRO.AoERadius, bullet.ValueRO.Damage, monsterPositions, monsterLookup);
+                    ApplyAoEDamage(bullet.ValueRO.EndPos, bullet.ValueRO.AoERadius, bullet.ValueRO.Damage, monsterPositions, ref _monsterLookup);
                 }
                 else 
                 {
-                    ApplySingleDamage(ref monsterLookup, bullet.ValueRO.TargetEntity, bullet.ValueRO.Damage);
+                    ApplySingleDamage(ref _monsterLookup, bullet.ValueRO.TargetEntity, bullet.ValueRO.Damage);
                 }
-                TriggerExplosionVFX(ref state, bullet.ValueRO.TowerEntity, bullet.ValueRO.EndPos, ecb, vfxPoolLookup);
+                TriggerExplosionVFX(ref state, bullet.ValueRO.TowerEntity, bullet.ValueRO.EndPos, ecb, ref _vfxPoolLookup);
                 bullet.ValueRW.Timer = 2.0f;
             }
         }
-
-        monsterEntities.Dispose();
-        monsterTransforms.Dispose();
-        monsterPositions.Dispose();
     }
 
     [BurstCompile]
-    private void TriggerExplosionVFX(ref SystemState state, Entity towerEntity, float3 position, EntityCommandBuffer ecb, ComponentLookup<TowerVFXPool> vfxPoolLookup)
+    private void TriggerExplosionVFX(ref SystemState state, Entity towerEntity, float3 position, EntityCommandBuffer ecb, ref ComponentLookup<TowerVFXPool> vfxPoolLookup)
     {
         if (towerEntity != Entity.Null && vfxPoolLookup.HasComponent(towerEntity))
         {
@@ -117,7 +105,7 @@ public partial struct BulletSystem : ISystem
     }
 
     [BurstCompile]
-    private void ApplyAoEDamage(float3 center, float radius, int damage, NativeArray<MonsterPosInfo> monsterPositions, ComponentLookup<MonsterData> monsterLookup)
+    private void ApplyAoEDamage(float3 center, float radius, int damage, NativeArray<MonsterPosInfo> monsterPositions, ref ComponentLookup<MonsterData> monsterLookup)
     {
         float radiusSq = radius * radius;
         float2 center2D = new float2(center.x, center.z);
@@ -149,16 +137,5 @@ public partial struct BulletSystem : ISystem
             else high = mid - 1;
         }
         return low;
-    }
-
-    struct MonsterPosInfo
-    {
-        public float3 Position;
-        public Entity Entity;
-    }
-
-    struct MonsterXComparer : System.Collections.Generic.IComparer<MonsterPosInfo>
-    {
-        public int Compare(MonsterPosInfo x, MonsterPosInfo y) => x.Position.x.CompareTo(y.Position.x);
     }
 }

@@ -14,22 +14,17 @@ public partial struct FireSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        _monsterQuery = SystemAPI.QueryBuilder().WithAll<MonsterData, LocalTransform>().Build();
-        state.RequireForUpdate(_monsterQuery);
+        state.RequireForUpdate<MonsterSpatialSingleton>();
         state.RequireForUpdate<BeginSimulationEntityCommandBufferSystem.Singleton>();
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        if (_monsterQuery.IsEmpty) return;
-
-        var monsterEntities = _monsterQuery.ToEntityArray(Allocator.TempJob);
-        var monsterTransforms = _monsterQuery.ToComponentDataArray<LocalTransform>(Allocator.TempJob);
-        var monsterPositions = new NativeArray<MonsterPosInfo>(monsterTransforms.Length, Allocator.TempJob);
-        for (int i = 0; i < monsterTransforms.Length; i++)
-            monsterPositions[i] = new MonsterPosInfo { Position = monsterTransforms[i].Position, Entity = monsterEntities[i] };
-        monsterPositions.Sort(new MonsterXComparer());
+        var spatialSingleton = SystemAPI.GetSingleton<MonsterSpatialSingleton>();
+        var monsterPositions = spatialSingleton.SortedMonsters.AsArray();
+        
+        if (monsterPositions.Length == 0) return;
 
         var ecb = SystemAPI.GetSingleton<BeginSimulationEntityCommandBufferSystem.Singleton>().CreateCommandBuffer(state.WorldUnmanaged);
         float dt = SystemAPI.Time.DeltaTime;
@@ -214,10 +209,6 @@ public partial struct FireSystem : ISystem
             for (int i = idx - 1; i >= 0; i--) { float dx = aC.x - monsterPositions[i].Position.x; if (dx * dx > rSq) break; float d = math.distancesq(c2, new float2(monsterPositions[i].Position.x, monsterPositions[i].Position.z)); if (d <= nD) { nD = d; tP = monsterPositions[i].Position; tE = monsterPositions[i].Entity; fd = true; } }
             if (fd) { if (st.ValueRO.Rotationable) tr.ValueRW.Rotation = quaternion.LookRotationSafe(math.normalize(tP - tr.ValueRO.Position), math.up()); if (st.ValueRO.AttackTimer <= 0) { var aoe = SystemAPI.GetComponent<AoEHitAttack>(tower); Entity b = bfr[pool.ValueRW.CurrentIndex % bfr.Length].Value; pool.ValueRW.CurrentIndex++; ecb.SetComponent(b, LocalTransform.FromPositionRotation(tr.ValueRO.Position, tr.ValueRO.Rotation)); ecb.AppendToBuffer(tower, new MuzzleVFXPlayRequest { VfxEntity = b }); float dst = math.distance(new float2(tr.ValueRO.Position.x, tr.ValueRO.Position.z), new float2(tP.x, tP.z)); ecb.SetComponent(b, new BulletData { StartPos = tr.ValueRO.Position, EndPos = tP, Speed = att.ValueRO.Speed, Damage = st.ValueRO.Damage, TargetEntity = Entity.Null, TowerEntity = tower, AttackType = TowerAttackType.Projectile, IsAoe = true, AoERadius = aoe.AoERadius }); ecb.SetComponent(b, new BulletAnimation { LastFireTime = currTime, Speed = att.ValueRO.Speed, Length = dst, Height = att.ValueRO.Height }); ft.ValueRW.Value = currTime; st.ValueRW.AttackTimer += dly; } } else if (st.ValueRO.AttackTimer < 0) st.ValueRW.AttackTimer = 0;
         }
-
-        monsterEntities.Dispose();
-        monsterTransforms.Dispose();
-        monsterPositions.Dispose();
     }
 
     private static int BinarySearchX(NativeArray<MonsterPosInfo> monsterPositions, float x)
@@ -225,10 +216,5 @@ public partial struct FireSystem : ISystem
         int low = 0, high = monsterPositions.Length - 1;
         while (low <= high) { int mid = (low + high) / 2; if (monsterPositions[mid].Position.x < x) low = mid + 1; else high = mid - 1; }
         return low;
-    }
-
-    struct MonsterPosInfo { public float3 Position; public Entity Entity; }
-    struct MonsterXComparer : System.Collections.Generic.IComparer<MonsterPosInfo> {
-        public int Compare(MonsterPosInfo x, MonsterPosInfo y) => x.Position.x.CompareTo(y.Position.x);
     }
 }
